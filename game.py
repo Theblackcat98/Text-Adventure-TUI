@@ -24,7 +24,7 @@ GAME_TITLE = "Terminal Text Adventure"
 
 # Ollama Configuration
 OLLAMA_HOST = "http://localhost:11434" # Default Ollama host
-OLLAMA_MODEL = "llama3"
+OLLAMA_MODEL = "phi4:latest"
 
 hardcoded_choices = [
     "Fallback: Look around the room more closely.",
