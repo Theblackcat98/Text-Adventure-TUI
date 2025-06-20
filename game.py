@@ -1,7 +1,5 @@
 import os
-# import json # No longer needed if ollama library handles JSON internally
-# import requests # No longer needed
-import ollama # Import the main ollama library
+import ollama # Import the main ollama library (provides ollama.Client, ollama.chat, etc.)
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -25,7 +23,8 @@ STORY_DIR = "story_parts"
 GAME_TITLE = "Terminal Text Adventure"
 
 # Ollama Configuration
-OLLAMA_MODEL = "llama3" # Or whatever model the user has
+OLLAMA_HOST = "http://localhost:11434" # Default Ollama host
+OLLAMA_MODEL = "llama3"
 
 hardcoded_choices = [
     "Fallback: Look around the room more closely.",
@@ -69,9 +68,8 @@ def get_player_choice(choices):
     return choices[chosen_index]
 
 def get_llm_choices(current_story_segment):
-    """Generates choices using Ollama LLM (ollama.chat), with error handling and fallback."""
+    """Generates choices using Ollama LLM (ollama.Client().chat), with configured host."""
 
-    # Construct the prompt in the messages format for ollama.chat
     prompt_content = (
         f"You are a helpful assistant for a text adventure game. "
         f"The current situation is: '{current_story_segment}'. "
@@ -86,17 +84,19 @@ def get_llm_choices(current_story_segment):
         }
     ]
 
-    console.print(f"DEBUG: Sending prompt to Ollama (chat): {{'role': 'user', 'content': '{prompt_content[:100]}...'}}", style="debug")
+    console.print(f"DEBUG: Attempting to connect to Ollama host: {OLLAMA_HOST}", style="debug")
+    console.print(f"DEBUG: Sending prompt to Ollama (client.chat): {{'role': 'user', 'content': '{prompt_content[:100]}...'}}", style="debug")
 
     try:
-        # Using ollama.chat() as per user feedback
-        response = ollama.chat(model=OLLAMA_MODEL, messages=messages)
+        # Instantiate client with configured host
+        client = ollama.Client(host=OLLAMA_HOST)
 
-        # Accessing the response content
-        # Based on user example: response['message']['content'] or response.message.content
+        # Using client.chat()
+        response = client.chat(model=OLLAMA_MODEL, messages=messages)
+
         generated_text = response.get('message', {}).get('content', "").strip()
 
-        console.print(f"DEBUG: LLM raw response (from chat): {generated_text}", style="debug")
+        console.print(f"DEBUG: LLM raw response (from client.chat): {generated_text}", style="debug")
 
         parsed_choices = []
         for line in generated_text.split('\n'):
@@ -107,21 +107,19 @@ def get_llm_choices(current_story_segment):
                     parsed_choices.append(choice_text)
 
         if len(parsed_choices) == 4:
-            console.print("DEBUG: Successfully parsed 4 choices from LLM (chat).", style="debug")
+            console.print("DEBUG: Successfully parsed 4 choices from LLM (client.chat).", style="debug")
             return parsed_choices
         else:
-            console.print(f"WARNING: LLM (chat) did not return 4 choices as expected (got {len(parsed_choices)}). Content: '{generated_text}'", style="warning")
+            console.print(f"WARNING: LLM (client.chat) did not return 4 choices as expected (got {len(parsed_choices)}). Content: '{generated_text}'", style="warning")
             return hardcoded_choices[:]
 
     except ollama.ResponseError as e:
-        console.print(f"ERROR: Ollama API error: {e.status_code} - {e.error}", style="error")
-    except ollama.RequestError as e: # More general request error like connection issues
-        console.print(f"ERROR: Ollama request error: {e}", style="error")
+        console.print(f"ERROR: Ollama API error (host: {OLLAMA_HOST}): {e.status_code} - {e.error}", style="error")
+    except ollama.RequestError as e:
+        console.print(f"ERROR: Ollama request error (host: {OLLAMA_HOST}): {e}", style="error")
     except Exception as e:
-        # This will catch other errors, including potential connection errors if not caught by ollama.RequestError specifically
-        # The ollama library might raise a generic ConnectionError or its own specific type for "Failed to connect"
-        console.print(f"ERROR: An unexpected error occurred while getting LLM choices: {e}", style="error")
-        console.print("Please ensure Ollama is running and accessible. https://ollama.com/download", style="info")
+        console.print(f"ERROR: An unexpected error occurred while getting LLM choices (host: {OLLAMA_HOST}): {e}", style="error")
+        console.print(f"Please ensure Ollama is running and accessible at {OLLAMA_HOST}. https://ollama.com/download", style="info")
 
     return hardcoded_choices[:]
 
