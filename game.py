@@ -1,4 +1,5 @@
 import os
+import sys # Added for path resolution
 import ollama # Import the main ollama library (provides ollama.Client, ollama.chat, etc.)
 from rich.console import Console
 from rich.panel import Panel
@@ -19,7 +20,15 @@ custom_theme = Theme({
 })
 console = Console(theme=custom_theme)
 
-STORY_DIR = "story_parts"
+# Determine the base directory for resources (story_parts)
+# This makes it work whether run as a script or an installed package
+try:
+    # PyInstaller creates a temp folder and stores path in _MEIPASS
+    BASE_DIR = sys._MEIPASS
+except AttributeError:
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+STORY_DIR = os.path.join(BASE_DIR, "story_parts")
 GAME_TITLE = "Terminal Text Adventure"
 
 # Ollama Configuration
