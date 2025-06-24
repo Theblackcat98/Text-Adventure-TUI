@@ -4,21 +4,21 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="terminal-text-adventure",
-    version="0.1.0",
-    author="The Black Cat Codes",  # Updated placeholder
-    author_email="your_email@example.com",  # Updated placeholder
-    description="A dynamic text adventure game played in the terminal, powered by Ollama LLMs.",
+    name="text-adventure-tui",  # Changed to desired PyPI name
+    version="0.1.1", # Incremented version
+    author="The Black Cat Codes",
+    author_email="author@example.com", # Please update this with your actual email
+    description="A dynamic text adventure game for your terminal, powered by Ollama LLMs.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Theblackcat98/Text-Adventure-TUI",  # noqa: E501
-    py_modules=["game"],  # Specify 'game' as a top-level module
-    # packages=find_packages(exclude=["tests*", "docs*"]), # Not ideal for a single script
+    url="https://github.com/Theblackcat98/Text-Adventure-TUI",
+    packages=["text_adventure_tui_lib", "text_adventure_tui_lib.story_parts"], # Define packages
+    package_data={"text_adventure_tui_lib.story_parts": ["*.txt"]}, # Include story_parts data
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: End Users/Desktop",
         "Topic :: Games/Entertainment :: Interactive Fiction",
-        "License :: OSI Approved :: MIT License",  # noqa: E501
+        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
@@ -26,31 +26,23 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
+        "Environment :: Console", # Added for TUI
     ],
     python_requires=">=3.7",
     install_requires=[
-        "ollama>=0.1.0",  # Specify a version range if known, e.g., ollama>=0.1.0,<0.2.0
-        "rich>=10.0.0",  # Specify a version range, e.g., rich>=10.0.0,<14.0.0
+        "ollama>=0.1.0,<0.3.0",
+        "rich>=10.0.0,<14.0.0",
     ],
     entry_points={
         "console_scripts": [
-            "terminal-adventure=game:game_loop",
+            "text-adventure-tui=text_adventure_tui_lib.game:game_loop", # Updated entry point
         ],
     },
-    include_package_data=True,  # To include non-code files specified in MANIFEST.in
-    package_data={
-        # If you have data files inside your package (e.g., story_parts if it were inside a package)
-        # For example, if 'game' was a package 'mygamepkg' and story_parts was in it:
-        # "mygamepkg": ["story_parts/*.txt"],
-        # Since story_parts is top-level and used via relative path from game.py,
-        # it's handled differently if game.py is treated as a script.
-        # For PyPI, story_parts packaging might need adjustment.  # noqa: E501
-        # For now, assuming game.py can find story_parts if run from the project root.
-        # If 'game.py' is part of a package, 'story_parts' path needs careful handling.
-    },
-    project_urls={  # Optional
+    include_package_data=True, # Ensures MANIFEST.in is processed
+    license="MIT",
+    # data_files is removed as package_data handles it now with package structure
+    project_urls={
         "Bug Tracker": "https://github.com/Theblackcat98/Text-Adventure-TUI/issues",
         "Source Code": "https://github.com/Theblackcat98/Text-Adventure-TUI",
-        # "Documentation": "link_to_your_docs_if_hosted_separately",
     },
 )

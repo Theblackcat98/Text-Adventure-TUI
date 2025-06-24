@@ -1,0 +1,16 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+tests/test_game_basics.py
+text_adventure_tui.egg-info/PKG-INFO
+text_adventure_tui.egg-info/SOURCES.txt
+text_adventure_tui.egg-info/dependency_links.txt
+text_adventure_tui.egg-info/entry_points.txt
+text_adventure_tui.egg-info/requires.txt
+text_adventure_tui.egg-info/top_level.txt
+text_adventure_tui_lib/__init__.py
+text_adventure_tui_lib/game.py
+text_adventure_tui_lib/story_parts/01_intro.txt
+text_adventure_tui_lib/story_parts/__init__.py
+text_adventure_tui_lib/story_parts/idea.txt

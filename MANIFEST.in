@@ -1,3 +1,3 @@
 include README.md
 include LICENSE
-recursive-include story_parts *.txt
+recursive-include text_adventure_tui_lib/story_parts *.txt

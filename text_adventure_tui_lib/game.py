@@ -1,6 +1,7 @@
 import os
 import re  # For robust choice parsing
 import sys  # Added for path resolution
+import importlib.resources # For accessing package data
 
 import ollama  # LLM library
 from rich.console import Console
@@ -45,13 +46,7 @@ except Exception as e:
         style="error",
     )
 
-# Determine the base directory for resources (story_parts)
-try:
-    BASE_DIR = sys._MEIPASS
-except AttributeError:
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-STORY_DIR = os.path.join(BASE_DIR, "story_parts")
+# STORY_DIR will now be determined by importlib.resources
 GAME_TITLE = "Terminal Text Adventure"
 
 hardcoded_choices = [
@@ -71,13 +66,28 @@ def display_title():
 
 
 def load_story_part(part_name):
-    """Loads a story part from the STORY_DIR."""
-    file_path = os.path.join(STORY_DIR, part_name)
+    """Loads a story part using importlib.resources."""
     try:
-        with open(file_path, "r") as f:
-            return f.read().strip()
+        # Assuming 'text_adventure_tui_lib' is the package name
+        # and 'story_parts' is a subdirectory within it.
+        story_content = importlib.resources.read_text(
+            "text_adventure_tui_lib.story_parts", part_name
+        )
+        return story_content.strip()
     except FileNotFoundError:
-        console.print(f"Error: Story file {file_path} not found.", style="danger")
+        # This specific exception might not be raised by read_text if the file isn't found,
+        # it might raise ModuleNotFoundError or other import errors if the package/submodule isn't found.
+        # However, if part_name is not found within the story_parts "resource container",
+        # it will raise a FileNotFoundError.
+        console.print(
+            f"Error: Story file '{part_name}' not found within the package.",
+            style="danger",
+        )
+        return None
+    except Exception as e:
+        console.print(
+            f"Error loading story part '{part_name}': {e}", style="danger"
+        )
         return None
 
 
@@ -129,13 +139,15 @@ def get_llm_story_continuation(current_story_segment, player_choice):
         f"You are a storyteller for a text adventure game.\n"
         f"Current situation: '{current_story_segment}'\n"
         f"{player_action_text}\n\n"
-        f"Continue the story from this point based on the player's choice. Keep the story segment concise (1-3 paragraphs).\n"  # noqa: E501
+        f"Continue the story from this point based on the player's choice. "
+        f"Keep the story segment concise (1-3 paragraphs).\n"
         f"Do not add any other text or choices, only the next part of the story."
     )
     messages = [{"role": "user", "content": prompt_content}]
 
     console.print(
-        f"DEBUG: Prompting LLM for story continuation (first 150 chars): {prompt_content[:150]}...",  # noqa: E501
+        f"DEBUG: Prompting LLM for story continuation (first 150 chars): "
+        f"{prompt_content[:150]}...",
         style="debug",
     )
 
@@ -210,15 +222,17 @@ def get_llm_options(current_story_segment):
     prompt_content = (
         f"You are a helpful assistant for a text adventure game.\n"
         f"The current situation is: '{current_story_segment}'\n\n"
-        f"Based on this situation, provide exactly 4 distinct, actionable, and concise choices for the player.\n"  # noqa: E501
+        f"Based on this situation, provide exactly 4 distinct, actionable, and "
+        f"concise choices for the player.\n"
         f"Each choice should start with a verb.\n"
-        f"Format the choices as a numbered list (e.g., 1. Choice A, 2. Choice B, etc.).\n"  # noqa: E501
-        f"Do not add any other text before or after the choices, only the numbered list of choices."
+        f"Format the choices as a numbered list (e.g., 1. Choice A, 2. Choice B, etc.).\n"
+        f"Do not add any other text before or after the choices, "
+        f"only the numbered list of choices."
     )
     messages = [{"role": "user", "content": prompt_content}]
 
     console.print(
-        f"DEBUG: Prompting LLM for options (first 150 chars): {prompt_content[:150]}...",  # noqa: E501
+        f"DEBUG: Prompting LLM for options (first 150 chars): {prompt_content[:150]}...",
         style="debug",
     )
 
