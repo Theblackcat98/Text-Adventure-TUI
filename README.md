@@ -26,8 +26,8 @@ Before you can play, you need to have Ollama installed and running with a suitab
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <repository-url>
-    cd terminal-text-adventure
+    git clone https://github.com/Theblackcat98/Text-Adventure-TUI.git
+    cd Text-Adventure-TUI
     ```
 2.  **Create a Virtual Environment (Recommended):**
     ```bash
