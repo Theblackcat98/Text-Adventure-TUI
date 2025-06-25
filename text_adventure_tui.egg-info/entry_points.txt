@@ -1,0 +1,2 @@
+[console_scripts]
+text-adventure-tui = text_adventure_tui_lib.game:game_loop

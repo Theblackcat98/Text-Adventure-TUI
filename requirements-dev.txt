@@ -2,6 +2,7 @@
 flake8>=3.8.0,<7.0.0 # Linter
 build>=0.7.0,<1.1.0    # For building packages (PEP 517)
 twine>=3.4.0,<5.0.0    # For uploading packages and checking distributions
+PyYAML>=5.0,<7.0       # For parsing story_arc.yaml
 
 # Optional:
 pytest>=6.0.0,<8.0.0   # For running tests
