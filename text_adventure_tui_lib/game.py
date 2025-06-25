@@ -50,9 +50,9 @@ def debug_print(message, style="debug", **kwargs):
 
 try:
     ollama_client = ollama.Client(host=OLLAMA_HOST)
-        debug_print( # Already using debug_print here, this is fine
-            "Ollama client initialized for host: " + OLLAMA_HOST
-        )
+    debug_print( # Already using debug_print here, this is fine
+        "Ollama client initialized for host: " + OLLAMA_HOST
+    )
 except Exception as e:
     console.print(
         "ERROR: Ollama client init for {} failed. Is it running? Err: {}".format(
@@ -804,6 +804,7 @@ def list_available_stories():
 
 def main_menu():
     """Displays the main menu and handles user selection."""
+    global DEBUG_MODE_ENABLED
     while True: # Loop for the main menu, allows returning to menu after a game
         display_title()
         console.print(Panel(Text("Main Menu", justify="center")), style="bold cyan")
@@ -855,7 +856,6 @@ def main_menu():
                     # After game_loop finishes, it will break this inner loop and the outer loop will reiterate,
                     # re-displaying the main menu.
                 elif action["type"] == "toggle_debug":
-                    global DEBUG_MODE_ENABLED
                     DEBUG_MODE_ENABLED = not DEBUG_MODE_ENABLED
                     console.print(f"Debug output {'enabled' if DEBUG_MODE_ENABLED else 'disabled'}.", style="info")
                     user_input_valid = False # Stay in menu, re-display with updated toggle status
