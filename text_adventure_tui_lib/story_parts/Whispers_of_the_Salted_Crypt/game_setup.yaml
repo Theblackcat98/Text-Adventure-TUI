@@ -1,0 +1,29 @@
+- id: story_start
+  name: "The Missing Mentor"
+  # This event is triggered manually by the game engine at the very beginning.
+  trigger:
+    mode: MANUAL
+    conditions:
+      - type: game_start
+
+  actions:
+    # 1. Set the player's starting location and knowledge.
+    - type: set_flag
+      value: "knows_elian_is_missing"
+    - type: change_location
+      # 'elian_study' is a conceptual tag for the location.
+      value: "elian_study"
+
+    # 2. Provide the opening, hand-crafted narrative.
+    - type: override_narrative
+      text: |
+        The scent of old paper and dust hangs heavy in the air of your mentor's study.
+        Master Elian has been missing for three days. The city guard considers him another
+        eccentric old man who simply wandered off, but you know better. His obsession
+        was the Salted Crypt, a place of myth that he swore was real. His desk is a
+        clutter of maps, books, and unfinished notes. You came here to find a clue,
+        any clue, as to where he might have gone.
+
+    # 3. Guide the LLM for its first interaction.
+    - type: modify_prompt
+      instruction: "The player is in Master Elian's study. The goal is to find where he went. The most important objects in the room are the cluttered desk, a tall bookshelf filled with lore books, and a large map of the coastline pinned to the wall. Guide the player to investigate these things."

@@ -1,0 +1,83 @@
+- id: find_elians_journal
+  name: "Discovering Elian's Journal"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "elian_study"
+      - type: player_action
+        value: "search_desk" # Changed from 'intent' to 'value'
+      - type: flag_not_set
+        value: "has_journal"
+  actions:
+    - type: set_flag
+      value: "has_journal"
+    - type: add_item
+      item_id: "elians_journal"
+      name: "Elian's Worn Journal"
+      description: "A leather-bound journal filled with Elian's familiar scrawl. The last several pages seem to have been written in a hurry."
+    - type: override_narrative
+      text: |
+        You carefully sort through the mess on the desk. Beneath a stack of star charts,
+        you find what you were looking for: his personal journal. The leather is cool
+        to the touch, and a place is marked with a silken ribbon.
+    - type: modify_prompt
+      instruction: "The player has just found Elian's journal. They will likely want to read it next."
+
+- id: read_journal_clue
+  name: "Reading the Critical Journal Entry"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action
+        value: "read_journal" # Changed from 'intent' to 'value'
+      - type: inventory_has
+        item_id: "elians_journal"
+      - type: flag_not_set
+        value: "knows_about_bluffs"
+  actions:
+    - type: set_flag
+      value: "knows_about_bluffs"
+    - type: override_narrative
+      text: |
+        You open the journal to the marked page. Elian's handwriting is frantic.
+        'I've found it! The maps were all wrong. It's not in the caves, it's *below*
+        them. The entrance is only revealed when the tide is at its lowest. I must see
+        it for myself. I will travel to the Saltstone Bluffs at once. The key... the
+        key must be the one from the Tycendi ruin.'
+    - type: add_choice
+      label: "Travel to the Saltstone Bluffs."
+      action: "trigger:go_to_bluffs"
+
+- id: find_hidden_key
+  name: "Finding the Runic Key"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "elian_study"
+      - type: player_action
+        value: "search_bookshelf" # Changed from 'intent' to 'value'
+      - type: flag_is_set
+        value: "knows_about_bluffs"
+      - type: flag_not_set
+        value: "has_key"
+  actions:
+    - type: set_flag
+      value: "has_key"
+    - type: add_item
+      item_id: "runic_key"
+      name: "Tycendi Runic Key"
+      description: "A heavy, salt-pitted bronze key covered in faint, glowing blue runes."
+    - type: override_narrative
+      text: |
+        Remembering the journal's mention of a key, you run your hands along the spines
+        of the old books on the shelf. One of them, 'A History of Tycendi Ruins', feels
+        oddly light. You pull it out and discover it has been hollowed out. Nestled inside
+        on a bed of velvet is a heavy, pitted bronze key. It hums with a faint energy.

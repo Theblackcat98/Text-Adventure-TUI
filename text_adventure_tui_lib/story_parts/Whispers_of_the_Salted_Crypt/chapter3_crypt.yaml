@@ -1,0 +1,58 @@
+- id: enter_the_crypt
+  name: "Entering the Crypt"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "saltstone_bluffs"
+      - type: player_action
+        value: "enter_archway" # Changed from 'intent' to 'value'
+      - type: flag_is_set
+        value: "tide_is_low"
+  actions:
+    - type: change_location
+      value: "crypt_antechamber"
+    - type: override_narrative
+      text: |
+        You carefully make your way down the slick rocks and step through the ancient archway.
+        The air immediately becomes still and heavy with the smell of salt and decay.
+        You are in a small antechamber, and before you stands a massive, circular stone
+        door sealed with intricate bronze bands. A single, rune-etched keyhole sits in its center.
+
+- id: rescue_elian
+  name: "Finding Master Elian"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "crypt_antechamber"
+      - type: player_action
+        value: "use_key" # Changed from 'intent' to 'value'
+      - type: inventory_has
+        item_id: "runic_key"
+  actions:
+    - type: remove_item
+      item_id: "runic_key"
+    - type: set_flag
+      value: "elian_is_found"
+    - type: override_narrative
+      text: |
+        You insert the Tycendi Runic Key into the lock. The runes on the key and the door
+        flare with a bright blue light. With a deep groan of grinding stone, the massive
+        door slides open.
+
+        The chamber beyond is vast. Piles of gold and ancient artifacts lie in dusty heaps,
+        but your attention is drawn to the center of the room. There, tied to a stone
+        altar, is Master Elian! He is alive, though he looks weak. "By the archives!" he rasps, his eyes
+        widening in disbelief. "You found me!"
+    - type: present_choices
+      text: "What do you do?"
+      choices:
+        - label: "Rush forward and untie him immediately."
+          action: "end_story_success_heroic"
+        - label: "Ask him what happened before you get any closer."
+          action: "end_story_success_cautious"

@@ -1,4 +1,4 @@
-Metadata-Version: 2.4
+Metadata-Version: 2.1
 Name: text-adventure-tui
 Version: 0.1.1
 Summary: A dynamic text adventure game for your terminal, powered by Ollama LLMs.
@@ -26,18 +26,6 @@ License-File: LICENSE
 Requires-Dist: ollama<0.3.0,>=0.1.0
 Requires-Dist: rich<14.0.0,>=10.0.0
 Requires-Dist: PyYAML<7.0,>=5.0
-Dynamic: author
-Dynamic: author-email
-Dynamic: classifier
-Dynamic: description
-Dynamic: description-content-type
-Dynamic: home-page
-Dynamic: license
-Dynamic: license-file
-Dynamic: project-url
-Dynamic: requires-dist
-Dynamic: requires-python
-Dynamic: summary
 
 # Terminal Text Adventure
 
