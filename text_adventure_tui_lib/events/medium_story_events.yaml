@@ -1,0 +1,112 @@
+- id: start_bandit_trail
+  name: "Caravan Wreckage Discovery"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "crossroads_caravan_wreckage"
+      - type: flag_not_set
+        value: "bandit_trail_started"
+  actions:
+    - type: set_flag
+      value: "bandit_trail_started"
+    - type: override_narrative # Supplements the checkpoint
+      text: |
+        You stand amidst the grim scene of a plundered caravan at a lonely crossroads. Splintered wood, overturned carts, and the bodies of merchants and guards tell a silent, brutal story.
+        Amongst the chaos, you spot a set of distinctive boot prints leading away from the carnage, heading north into the wilderness.
+        A glint of metal near a fallen banner catches your eye - it's a discarded bandit insignia, a snarling wolf's head.
+    - type: modify_prompt
+      instruction: "The player has discovered a caravan attacked by bandits bearing a snarling wolf insignia. They've found tracks leading north. The player should feel compelled to investigate or seek justice."
+
+- id: find_thicket_clue
+  name: "Clue in the Thicket"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location # Assuming LLM or choices guide player to a "thicket" area conceptually
+        value: "dense_thicket" # This location would need to be set by player choice or LLM description interpreted by a future system
+      - type: flag_set
+        value: "bandit_trail_started"
+      - type: flag_not_set
+        value: "found_thicket_clue"
+  actions:
+    - type: set_flag
+      value: "found_thicket_clue"
+    - type: override_narrative
+      text: |
+        Pushing through the sharp, tangled branches of the dense thicket, you nearly trip over something hidden in the undergrowth.
+        It's a torn piece of fabric, snagged on a thorn. The fabric is coarse, dyed a dark red, and smells faintly of unwashed bodies and cheap ale - bandit garb.
+        The tracks are definitely fresh.
+    - type: modify_prompt
+      instruction: "The player has found another clue (a piece of bandit clothing) in the thicket, confirming they are on the right path. The bandits are not far ahead."
+
+- id: canyon_ambush_choice # This event gives a choice rather than just overriding
+  name: "Possible Canyon Ambush"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "canyon_overlook" # Player reaches a point overlooking the canyon
+      - type: flag_set
+        value: "found_thicket_clue"
+      - type: flag_not_set
+        value: "canyon_path_chosen"
+  actions:
+    - type: set_flag # Mark that the choice point was reached
+      value: "canyon_path_choice_presented"
+    # This action type 'present_choices' is not yet implemented.
+    # For now, we'll use override_narrative and modify_prompt to suggest paths.
+    - type: override_narrative
+      text: |
+        From the rocky outcrop, you survey the narrow canyon below. The bandit tracks clearly lead down a treacherous, winding path.
+        However, you also spot a less obvious, narrow ledge that seems to run along the canyon wall, potentially offering a stealthier, albeit more dangerous, approach.
+        The main path looks like it could be easily watched.
+    - type: modify_prompt
+      instruction: "The player is at a decision point: take the obvious, potentially watched path down into the canyon, or try a riskier, stealthier ledge. The LLM should present these options or allow freeform choice leading to one."
+    # If 'present_choices' was implemented:
+    # - type: present_choices
+    #   text: "How do you proceed into the canyon?"
+    #   choices:
+    #     - label: "Take the main path down."
+    #       action: "set_flag:took_main_canyon_path;set_flag:canyon_path_chosen"
+    #     - label: "Attempt the narrow ledge."
+    #       action: "set_flag:took_ledge_canyon_path;set_flag:canyon_path_chosen"
+
+- id: bandit_camp_discovered
+  name: "Bandit Camp Found"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location # Player is conceptually 'deep_in_canyon' or 'near_cave_entrance'
+        value: "bandit_cave_approach"
+      # Requires a flag like 'canyon_path_chosen' to be set from the previous event's outcome.
+      # Since we don't have that choice feedback loop yet, we'll make this simpler for now.
+      - type: flag_set
+        value: "canyon_path_choice_presented" # Simpler: just that they saw the choice
+      - type: turn_count_in_location # Player has spent some time after the canyon choice point
+        location: "bandit_cave_approach" # This implies player moved towards the cave
+        value: 3
+        operator: ">="
+      - type: flag_not_set
+        value: "found_bandit_camp"
+  actions:
+    - type: set_flag
+      value: "found_bandit_camp"
+    - type: override_narrative
+      text: |
+        Following the signs – or your chosen path – you arrive at a concealed cave entrance, partially hidden by a recent rockslide.
+        The smell of woodsmoke is stronger here, and you can hear the gruff murmur of voices from within. This is undoubtedly the bandit hideout.
+        Two rough-looking bandits stand guard near the entrance, not very attentively.
+    - type: modify_prompt
+      instruction: "The player has found the bandit hideout. Two guards are visible. The player needs to decide how to approach: stealth, direct confrontation, or perhaps find another way in if the LLM allows. This is a critical moment."
+    # This event sets the stage for the final confrontation or resolution, which would be handled by the LLM
+    # based on this setup and the final checkpoint in the story_arc.yaml.
+    # A flag like "bandits_defeated" or "player_escaped_bandits" would be set by LLM choices/actions.

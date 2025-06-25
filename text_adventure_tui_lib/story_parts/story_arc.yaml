@@ -1,0 +1,18 @@
+title: "The Shadow Over Eldoria"
+total_turns_estimate: 20
+checkpoints:
+  - turn: 1 # Initial mood setting or immediate event
+    prompt_injection: "A cold shiver runs down your spine, not from the ambient temperature, but from a sudden sense of being watched."
+  - turn: 5
+    prompt_injection: "You hear a distant, mournful howl that seems to echo through the very stones of this place. It sounds like a wolf, but larger, and filled with unnatural sorrow."
+  - turn: 10
+    prompt_injection: "The air grows heavy, and a strange, metallic scent taints the breeze. Ahead, you notice the path is stained with a dark, viscous substance that definitely isn't water."
+  - turn: 15
+    prompt_injection: "A crumbling stone altar, covered in strange glowing runes, comes into view. As you approach, the runes pulse with a faint, ominous light, and you feel a strange pressure in your head."
+  - turn: 20 # Potential climax or turning point
+    prompt_injection: "Suddenly, the ground trembles violently! Dust and small stones fall from the ceiling. The source of the shadow over Eldoria is making its presence known."
+    # Example of an optional field we might use later:
+    # special_event: "earthquake"
+  - turn: 25 # Optional: A post-climax event or a lead into a new phase
+    prompt_injection: "The immediate danger seems to have passed, but the oppressive atmosphere remains. You realize this is far from over."
+    # force_end_game: false # Example

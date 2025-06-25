@@ -1,0 +1,5 @@
+include README.md
+include LICENSE
+recursive-include text_adventure_tui_lib/story_parts *.txt
+recursive-include text_adventure_tui_lib/story_parts *.yaml
+recursive-include text_adventure_tui_lib/events *.yaml

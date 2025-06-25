@@ -1,0 +1,22 @@
+title: "The Bandit's Trail"
+starting_location: "crossroads_caravan_wreckage"
+total_turns_estimate: 20
+
+checkpoints:
+  - turn: 1
+    prompt_injection: "The wreckage of the caravan is still smoldering. Guards and merchants lie slain. This was a brutal attack. You see tracks leading north."
+  - turn: 5
+    prompt_injection: "The trail leads you into a dense, thorny thicket. It's slow going, and the path is barely visible."
+  - turn: 10
+    prompt_injection: "You emerge from the thicket onto a rocky outcrop overlooking a narrow canyon. The tracks continue downwards."
+  - turn: 15
+    prompt_injection: "Deep within the canyon, the air is still and oppressive. You find a recently doused campfire and some discarded supplies – bandit signs."
+  - turn: 19 # Penultimate turn, setting up the end
+    prompt_injection: "Ahead, hidden behind a rockslide, you spot the entrance to a cave. Faint torchlight flickers from within. This must be the bandit hideout."
+  - turn: 20 # Final turn
+    prompt_injection: |
+      Whether you confronted the bandits or chose a different path, the immediate trail ends here.
+      The fate of the stolen goods and the remaining bandits hangs in the balance, but your current pursuit is over.
+    force_end_game: true
+    # The actual outcome (bandits dealt with, player escapes, etc.) will depend on flags set by events.
+    # Similar to the short story, game_loop or get_llm_story_continuation will need to customize this final message.
