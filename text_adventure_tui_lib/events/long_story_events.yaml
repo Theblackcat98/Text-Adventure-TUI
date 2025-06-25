@@ -1,0 +1,157 @@
+- id: village_cursed_intro
+  name: "Witnessing the Curse"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "cursed_village_outskirts"
+      - type: flag_not_set
+        value: "curse_quest_accepted"
+  actions:
+    - type: set_flag
+      value: "curse_quest_briefed" # Player has been made aware of the curse
+    - type: override_narrative
+      text: |
+        The village of Oakhaven is wrapped in an unnatural silence, broken only by the rustling of a strange, grey mist that clings to everything.
+        Houses are shuttered, fields untended. You see a hunched figure tending a small, withered garden. As you approach, they look up with hollow eyes.
+        "The Whispers..." they croak, "they started a month ago... from the caves. Took our joy, then our strength. Please, if you have courage, find the source..."
+    - type: modify_prompt
+      instruction: "The player is in a cursed village. A villager has just implored them to investigate the Whispering Caves to find the source of the curse. The atmosphere is bleak and desperate."
+
+- id: accept_curse_quest # Example of an event triggered by player choice (simulated)
+  name: "Accepting the Curse Quest"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "curse_quest_briefed"
+      # In a real system, this would be a 'player_action_intent: "agree_to_help"'
+      # For now, we'll assume a positive interaction with the villager leads to this.
+      # To make it testable, let's use a turn count in the starting location after briefing.
+      - type: turn_count_in_location
+        location: "cursed_village_outskirts"
+        value: 2
+        operator: ">="
+      - type: flag_not_set
+        value: "curse_quest_accepted"
+  actions:
+    - type: set_flag
+      value: "curse_quest_accepted"
+    - type: override_narrative
+      text: |
+        Moved by their plight, you agree to investigate the Whispering Caves. The villager clasps your hand, tears welling in their eyes.
+        "May the old gods protect you," they whisper, pointing towards a dark, overgrown path. "The caves lie that way, beyond the Gloomwood."
+    - type: modify_prompt
+      instruction: "The player has formally accepted the quest to stop the curse. Their next goal is to find and enter the Whispering Caves via the Gloomwood. They should feel a sense of purpose and foreboding."
+
+- id: enter_whispering_caves
+  name: "Entering the Caves"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location # Player navigates to "cave_entrance"
+        value: "cave_entrance"
+      - type: flag_set
+        value: "curse_quest_accepted"
+      - type: flag_not_set
+        value: "caves_entered"
+  actions:
+    - type: set_flag
+      value: "caves_entered"
+    - type: change_location # Action to be implemented later
+      value: "whispering_caves_level1"
+    - type: override_narrative
+      text: |
+        You push through thorny vines into the gaping maw of the Whispering Caves. A gust of frigid air rushes out, carrying with it a chorus of faint, sibilant whispers that seem to slither into your mind.
+        The darkness within is almost absolute, save for patches of glowing moss. The path slopes downwards.
+    - type: modify_prompt
+      instruction: "The player has just entered the Whispering Caves. The atmosphere is oppressive, and the whispers are affecting their sanity (conceptually). They need to explore deeper."
+
+- id: find_lore_tablet
+  name: "Discovering Ancient Lore"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location # e.g. "whispering_caves_level1" or a specific sub-area
+        value: "whispering_caves_level1"
+      - type: turn_count_in_location # After some exploration
+        location: "whispering_caves_level1"
+        value: 3
+        operator: ">="
+      - type: flag_set
+        value: "caves_entered"
+      - type: flag_not_set
+        value: "found_lore_tablet"
+  actions:
+    - type: set_flag
+      value: "found_lore_tablet"
+    - type: override_narrative
+      text: |
+        In a small alcove, half-buried in rubble, you find a stone tablet covered in ancient, eroded symbols.
+        As you trace them, images flash through your mind: a powerful sorcerer, a dark ritual, an entity bound to an artifact, and a terrible curse unleashed.
+        The tablet hints that the entity feeds on despair and can only be unbound by [a specific method or item - LLM can elaborate].
+    - type: modify_prompt
+      instruction: "The player has found a lore tablet explaining the origin of the curse and hinting at how to break it. This is a major breakthrough. The LLM should allow the player to react to this information or use it to decide their next actions."
+
+- id: solve_pressure_plate_puzzle # Example of a simple puzzle interaction
+  name: "Pressure Plate Puzzle"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "cave_chamber_puzzle1"
+      - type: flag_set
+        value: "found_lore_tablet" # Must know about the caves to reach this far
+      # Ideally, this would trigger on player action "step_on_plate" or "examine_floor_symbols"
+      # For now, a turn count in this specific puzzle location.
+      - type: turn_count_in_location
+        location: "cave_chamber_puzzle1"
+        value: 2
+        operator: ">="
+      - type: flag_not_set
+        value: "solved_pressure_plate_puzzle"
+  actions:
+    - type: set_flag
+      value: "solved_pressure_plate_puzzle"
+    - type: override_narrative
+      text: |
+        You notice strange tiles on the floor. After some experimentation [or by deciphering a clue from the tablet], you step on them in a specific sequence.
+        With a deep groan, a section of the cave wall grinds open, revealing a new passage leading even deeper into the earth. The whispers intensify.
+    - type: modify_prompt
+      instruction: "The player has solved a pressure plate puzzle, revealing a new path. This should feel like progress. The whispers are getting stronger, indicating they are getting closer to the source."
+
+- id: final_confrontation_setup
+  name: "The Source of the Curse Revealed"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "curse_sanctum" # The final area
+      - type: flag_set
+        value: "solved_pressure_plate_puzzle"
+      - type: flag_not_set
+        value: "curse_source_confronted"
+  actions:
+    - type: set_flag
+      value: "curse_source_confronted"
+    - type: override_narrative
+      text: |
+        You enter a vast, crystalline cavern. At its center, a pulsating, shadowy vortex hovers above a obsidian artifact embedded in the stone.
+        This is undeniably the source of the curse and the maddening whispers. As you approach, the vortex coalesces into a terrifying, spectral form.
+        It radiates immense sorrow and rage. "You seek to silence us?" it hisses, the combined voice of a thousand tormented souls. "You will join our chorus!"
+    - type: modify_prompt
+      instruction: "The player is face-to-face with the entity causing the curse. This is the climax. The player needs to act based on the lore they found (e.g., use an item, perform an action). The LLM should guide this final confrontation. Success here means the curse is broken."
+    # The actual breaking of the curse (e.g. setting a "curse_broken" flag) would depend on the LLM's narration of the player's actions here.
+    # The final checkpoint in long_story_arc.yaml would then provide the concluding text based on this flag.

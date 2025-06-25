@@ -1,0 +1,94 @@
+- id: start_locket_quest
+  name: "The Worried Villager"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "village_path" # Matches starting_location in short_story_arc.yaml
+      - type: flag_not_set
+        value: "locket_quest_active"
+  actions:
+    - type: set_flag
+      value: "locket_quest_active"
+    - type: override_narrative
+      text: |
+        You are walking along a dusty path just outside a small village when an elderly woman, her face etched with worry, approaches you.
+        "Oh, thank goodness, a traveler!" she exclaims, her voice trembling slightly. "I've lost my precious silver locket. It was a gift from my late husband.
+        I think I might have dropped it near the old shrine in the Whispering Woods. It's not much, but it means the world to me. Can you help me find it?"
+    - type: modify_prompt
+      instruction: "The player has just accepted a quest to find a missing locket for an old woman. The locket is near an old shrine in the Whispering Woods. The player should feel motivated to help."
+
+- id: shrine_spirit_encounter
+  name: "Encounter with the Shrine Spirit"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "old_shrine" # Player needs to reach this location
+      - type: flag_set
+        value: "locket_quest_active"
+      - type: flag_not_set
+        value: "met_shrine_spirit"
+  actions:
+    - type: set_flag
+      value: "met_shrine_spirit"
+    - type: override_narrative
+      text: |
+        You arrive at a clearing where a small, ancient stone shrine stands, covered in moss and ivy.
+        As you approach, a faint shimmer in the air coalesces into the form of a small, green-skinned creature with large, curious eyes – a nature spirit.
+        It tilts its head, regarding you. "Visitors are rare," it chirps, its voice like rustling leaves. "What brings you to my shrine?"
+        It seems to be holding a small, shiny object.
+    - type: modify_prompt
+      instruction: "The player has encountered a nature spirit at the shrine. The spirit is holding a shiny object (likely the locket). The player needs to interact with the spirit, perhaps by being respectful or offering something, to get the locket. The spirit is mischievous but not evil."
+    # In a more advanced system, we might add specific choices here for interacting with the spirit.
+    # For now, the LLM will generate based on the override and prompt modification.
+
+- id: locket_retrieved_event # This event would ideally be triggered by a specific player choice or LLM output.
+  name: "Locket Retrieved"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "met_shrine_spirit"
+      # This is a placeholder for a more complex trigger, e.g., player successfully persuades spirit
+      # For testing, we might need a debug command to set "locket_retrieved_from_spirit"
+      # Or, we assume the LLM, guided by the prompt, will narrate the player getting the locket.
+      # Let's assume for now the LLM will narrate this based on the previous modify_prompt.
+      # We will set the "locket_retrieved" flag if the LLM's story implies it.
+      # This part is tricky without direct choice-to-flag mapping yet.
+      # For simplicity, let's imagine a scenario where the LLM describes the spirit giving the locket.
+      # A temporary simpler trigger for testing:
+      - type: turn_count_in_location # Player spends some time at the shrine after meeting spirit
+        location: "old_shrine"
+        value: 2 # e.g., triggers 2 turns after meeting the spirit at the shrine
+        operator: ">="
+      - type: flag_not_set
+        value: "locket_retrieved"
+  actions:
+    - type: set_flag
+      value: "locket_retrieved"
+    - type: override_narrative # This text assumes the player successfully got the locket.
+      text: |
+        After a moment of consideration [or based on your interaction], the nature spirit smiles and holds out the silver locket.
+        "It is pretty," it chirps, "but it belongs with its memories. Take it."
+        You now have the locket! You should return it to the old woman.
+    - type: modify_prompt
+      instruction: "The player has successfully retrieved the locket from the spirit. They should feel a sense of accomplishment and know they need to return to the village/villager. The next step is to head back."
+
+# Note: The actual "ending" where the player gives the locket back and gets a reward
+# would be handled by the final checkpoint in short_story_arc.yaml, which checks the "locket_retrieved" flag.
+# The prompt_injection in that final checkpoint would be crafted to say something like:
+# (If locket_retrieved): "You return to the village, find the old woman, and give her the locket. She is overjoyed..."
+# (If not locket_retrieved): "You return to the village, but sadly, you couldn't find the locket. The old woman looks disappointed..."
+# This requires modifying the get_llm_story_continuation to be able to read flags for its prompt injection,
+# or a more complex event to modify that final checkpoint's text dynamically.
+# For now, the final checkpoint in the arc is generic, and the "locket_retrieved" flag is set by this event.
+# The game ending message would ideally reflect this flag.
+# We can enhance the final checkpoint's prompt_injection in game.py if a flag is set.
+# Let's add that logic to game.py when handling the final checkpoint.

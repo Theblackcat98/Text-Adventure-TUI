@@ -214,10 +214,11 @@ def get_llm_story_continuation(current_story_segment, player_choice, turn_number
             style="error",
         )
         console.print(
-            f"Ensure Ollama is running at {OLLAMA_HOST}. See ollama.com/download",  # noqa: E501
+            f"Ensure Ollama is running at {OLLAMA_HOST}. See ollama.com/download",
             style="info",
         )
-    return "Error: The story could not be continued due to an unexpected issue."
+    # Return a generic continuation to allow testing of game flow without LLM
+    return "The story path unfolds before you, marked by the choices you've made and the events that transpire..."
 
 
 def _parse_llm_choices(generated_text):
@@ -339,14 +340,30 @@ def load_story_arc(arc_file_name="story_arc.yaml"):
         return None
 
 
-def game_loop():
+def game_loop(selected_story_name="short"): # Reverted default to short
     display_title()
-    story_arc_data = load_story_arc() # Load the story arc (for checkpoints)
 
-    # Initialize EventManager
-    # For now, hardcoding the event file. Later, this could be dynamic (e.g., based on story arc)
-    event_files_to_load = [("text_adventure_tui_lib.events", "general_events.yaml")]
-    event_manager = EventManager(event_files_to_load, console_instance=console) # Pass the themed console
+    console.print(f"INFO: Loading story: {selected_story_name.upper()}", style="info")
+
+    # Determine filenames based on selection
+    story_arc_filename = f"{selected_story_name}_story_arc.yaml"
+    events_filename = f"{selected_story_name}_story_events.yaml" # Corrected filename construction
+
+    # Ensure general_events.yaml is also loaded if it contains common events
+    # For now, let's assume each story's event file is self-contained or we load only one.
+    # If we want common + specific, event_files_to_load would need adjustment.
+    # Let's load general_events.yaml AND story-specific events for now.
+    event_files_to_load = [
+        ("text_adventure_tui_lib.events", "general_events.yaml"), # Common events
+        ("text_adventure_tui_lib.events", events_filename)       # Story-specific events
+    ]
+    # Filter out general_events if the selected story IS general_events to prevent double loading
+    if events_filename == "general_events.yaml":
+        event_files_to_load = [("text_adventure_tui_lib.events", "general_events.yaml")]
+
+
+    story_arc_data = load_story_arc(story_arc_filename) # Load the specific story arc
+    event_manager = EventManager(event_files_to_load, console_instance=console)
 
     # Initialize game_state
     game_state = {
@@ -448,8 +465,30 @@ def game_loop():
         if story_arc_data and 'checkpoints' in story_arc_data:
             for checkpoint in story_arc_data['checkpoints']:
                 if checkpoint.get('turn') == game_state['turn_counter'] and checkpoint.get('force_end_game'):
-                    console.print("\n--- The story arc (legacy checkpoint) has reached its conclusion ---", style="bold yellow")
+                    final_message = checkpoint.get('prompt_injection', "The story comes to an end.")
+
+                    # Customize final message based on flags for "short" story
+                    if selected_story_name == "short":
+                        if game_state['flags'].get('locket_retrieved'):
+                            final_message = (
+                                "Returning to the village, you find the elderly woman. Her eyes light up as you present the locket. "
+                                "'Oh, bless you, kind traveler!' she exclaims, tears of joy streaming down her face. 'I... I don't have much, but please, take this as a token of my immense gratitude.' "
+                                "She hands you a small, intricately carved wooden bird. You feel a sense of warmth and accomplishment."
+                            )
+                        else:
+                            final_message = (
+                                "You return to the village, but the locket remains lost. The elderly woman's face falls when you tell her. "
+                                "'Oh, dear,' she sighs, her shoulders slumping. 'Well, thank you for trying, young one. Some things are just not meant to be found again.' "
+                                "A sense of melancholy hangs in the air."
+                            )
+                    # Add more customizations for other stories here if needed.
+                    # For medium/long, the generic prompt_injection from the checkpoint might be sufficient, or they might have their own event-driven endings.
+
+                    console.print("\n--- The story arc has reached its conclusion ---", style="bold yellow")
+                    # Display the last piece of story text (which might be an override or LLM generated)
                     display_story(story_text)
+                    # Then display the customized or default final message from the checkpoint
+                    console.print(Panel(Text(final_message, style="italic yellow"), border_style="yellow"),)
                     console.print("Thanks for playing!", style="bold green")
                     return # End the game_loop
 
@@ -459,4 +498,8 @@ def game_loop():
 
 
 if __name__ == "__main__":
-    game_loop()
+    # Example of how to run a specific story when executing the module directly.
+    # In a real application, this might come from command-line arguments.
+    selected_story = "medium" # Can be "short", "medium", or "long"
+    console.print(f"Running story: {selected_story} (from __main__)", style="bold blue")
+    game_loop(selected_story_name=selected_story)
