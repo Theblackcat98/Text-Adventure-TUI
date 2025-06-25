@@ -14,3 +14,4 @@ text_adventure_tui_lib/game.py
 text_adventure_tui_lib/story_parts/01_intro.txt
 text_adventure_tui_lib/story_parts/__init__.py
 text_adventure_tui_lib/story_parts/idea.txt
+text_adventure_tui_lib/story_parts/story_arc.yaml

@@ -2,6 +2,7 @@ import os
 import re  # For robust choice parsing
 import sys  # Added for path resolution
 import importlib.resources # For accessing package data
+import yaml # For parsing story_arc.yaml
 
 import ollama  # LLM library
 from rich.console import Console
@@ -130,17 +131,36 @@ def get_player_choice(choices):
             )
 
 
-def get_llm_story_continuation(current_story_segment, player_choice):
+def get_llm_story_continuation(current_story_segment, player_choice, turn_number, story_arc):
     """
-    Generates the next story segment using Ollama LLM based on the player's choice.
+    Generates the next story segment using Ollama LLM, incorporating checkpoints.
     """
     player_action_text = f"The player chose to: '{player_choice}'."
+
+    story_context_for_llm = f"Current situation: '{current_story_segment}'\n{player_action_text}\n"
+
+    # Check for checkpoint injection
+    if story_arc and 'checkpoints' in story_arc:
+        for checkpoint in story_arc['checkpoints']:
+            if checkpoint.get('turn') == turn_number:
+                injection = checkpoint.get('prompt_injection', '')
+                if injection:
+                    console.print(f"DEBUG: Checkpoint for turn {turn_number} triggered: '{injection[:100]}...'", style="debug")
+                    # Append checkpoint info to the context for the LLM
+                    story_context_for_llm += f"\nA significant event occurs: {injection}\n"
+                # Handle other checkpoint actions here in the future (e.g., force_end_game)
+                if checkpoint.get('force_end_game'):
+                    # This needs more robust handling, perhaps returning a special signal
+                    # For now, we can prepend a note, but the LLM might ignore it.
+                    # A better way would be for game_loop to check this after this function returns.
+                    console.print("INFO: Story arc indicates game should end here.", style="info")
+                    # story_context_for_llm += "\nThe story must conclude now.\n"
+                break
+
     prompt_content = (
         f"You are a storyteller for a text adventure game.\n"
-        f"Current situation: '{current_story_segment}'\n"
-        f"{player_action_text}\n\n"
-        f"Continue the story from this point based on the player's choice. "
-        f"Keep the story segment concise (1-3 paragraphs).\n"
+        f"{story_context_for_llm}\n"
+        f"Continue the story from this point, weaving in any significant events seamlessly. Keep the story segment concise (1-3 paragraphs).\n"
         f"Do not add any other text or choices, only the next part of the story."
     )
     messages = [{"role": "user", "content": prompt_content}]
@@ -295,20 +315,47 @@ def get_llm_options(current_story_segment):
     return hardcoded_choices[:]
 
 
+def load_story_arc(arc_file_name="story_arc.yaml"):
+    """Loads and parses the story arc YAML file."""
+    try:
+        yaml_content = importlib.resources.read_text(
+            "text_adventure_tui_lib.story_parts", arc_file_name
+        )
+        story_arc_data = yaml.safe_load(yaml_content)
+        console.print(f"DEBUG: Story arc '{story_arc_data.get('title', 'Untitled Arc')}' loaded.", style="debug")
+        return story_arc_data
+    except FileNotFoundError:
+        console.print(f"Warning: Story arc file '{arc_file_name}' not found. Proceeding without structured arc.", style="warning")
+        return None
+    except yaml.YAMLError as e:
+        console.print(f"Error parsing story arc file '{arc_file_name}': {e}", style="danger")
+        return None
+    except Exception as e:
+        console.print(f"Unexpected error loading story arc '{arc_file_name}': {e}", style="danger")
+        return None
+
+
 def game_loop():
     display_title()
-    current_story_segment_id = "01_intro.txt"
+    story_arc_data = load_story_arc() # Load the story arc
+    turn_counter = 1 # Initialize turn counter
+
+    current_story_segment_id = "01_intro.txt" # This could also come from story_arc_data
+    # Potentially, get initial story from story_arc_data or a specific start checkpoint
     story_text = load_story_part(current_story_segment_id)
 
     if not story_text:
         console.print(
-            f"Game cannot start. Initial story part '{current_story_segment_id}' missing.",  # noqa: E501
+            f"Game cannot start. Initial story part '{current_story_segment_id}' missing.",
             style="danger",
         )
         return
 
-    while True:
+    while True: # Main game loop
+        console.print(f"\n--- Turn {turn_counter} ---", style="bold magenta")
         display_story(story_text)
+
+        # Get choices (LLM might be influenced by checkpoint text already injected in story_text)
         choices = get_llm_options(story_text)
         if not choices:
             console.print(
@@ -337,7 +384,14 @@ def game_loop():
             break
 
         console.print(f"\nYou chose: [italic choice]{player_choice}[/italic choice]")
-        new_story_segment = get_llm_story_continuation(story_text, player_choice)
+
+        # Get story continuation from LLM, potentially influenced by checkpoint
+        new_story_segment = get_llm_story_continuation(
+            current_story_segment=story_text,
+            player_choice=player_choice,
+            turn_number=turn_counter,
+            story_arc=story_arc_data
+        )
 
         if (
             not new_story_segment
@@ -345,11 +399,23 @@ def game_loop():
             or new_story_segment.startswith("The story seems to have hit a snag")
         ):
             console.print(
-                f"Error: Story couldn't continue. LLM response (first 100): '{new_story_segment[:100]}...'. Game over.",  # noqa: E501
+                f"Error: Story couldn't continue. LLM response (first 100): '{new_story_segment[:100]}...'. Game over.",
                 style="danger",
             )
             break
         story_text = new_story_segment
+
+        # Check for forced game end from checkpoint
+        if story_arc and 'checkpoints' in story_arc:
+            for checkpoint in story_arc['checkpoints']:
+                if checkpoint.get('turn') == turn_counter and checkpoint.get('force_end_game'):
+                    console.print("\n--- The story arc has reached its conclusion ---", style="bold yellow")
+                    # Display the final segment before breaking
+                    display_story(story_text)
+                    console.print("Thanks for playing!", style="bold green")
+                    return # End the game_loop
+
+        turn_counter += 1 # Increment turn counter
 
 
 if __name__ == "__main__":

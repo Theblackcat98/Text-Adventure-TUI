@@ -13,7 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Theblackcat98/Text-Adventure-TUI",
     packages=["text_adventure_tui_lib", "text_adventure_tui_lib.story_parts"], # Define packages
-    package_data={"text_adventure_tui_lib.story_parts": ["*.txt"]}, # Include story_parts data
+    package_data={"text_adventure_tui_lib.story_parts": ["*.txt", "*.yaml"]}, # Include story_parts data including YAML
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: End Users/Desktop",
@@ -32,6 +32,7 @@ setup(
     install_requires=[
         "ollama>=0.1.0,<0.3.0",
         "rich>=10.0.0,<14.0.0",
+        "PyYAML>=5.0,<7.0", # Added PyYAML
     ],
     entry_points={
         "console_scripts": [
