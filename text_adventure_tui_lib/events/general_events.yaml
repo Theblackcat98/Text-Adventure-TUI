@@ -1,0 +1,70 @@
+- id: welcome_to_eldoria
+  name: "Arrival in Eldoria"
+  options:
+    once: true
+    priority: 1 # Lower numbers could mean higher priority if we implement that
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "eldoria_town_square"
+      - type: flag_not_set
+        value: "welcomed_to_eldoria"
+  actions:
+    - type: set_flag
+      value: "welcomed_to_eldoria"
+    - type: override_narrative
+      text: |
+        You step into the bustling town square of Eldoria. Merchants hawk their wares, children laugh and chase pigeons,
+        and the scent of freshly baked bread mingles with the metallic tang of the blacksmith's forge.
+        A guard near the ornate fountain gives you a nod. "Welcome to Eldoria, traveler. Stay out of trouble."
+    - type: modify_prompt
+      instruction: "The player has just arrived in Eldoria and received a generic welcome. The atmosphere is busy but peaceful for now. The player might want to explore, talk to someone, or look for an inn."
+
+- id: hear_rumor_at_inn
+  name: "Overhear a Rumor at the Sleepy Dragon Inn"
+  options:
+    once: true
+    priority: 5
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "sleepy_dragon_inn"
+      - type: flag_set # Prerequisite: player must have been welcomed to Eldoria first
+        value: "welcomed_to_eldoria"
+      - type: flag_not_set
+        value: "heard_crypt_rumor"
+  actions:
+    - type: set_flag
+      value: "heard_crypt_rumor"
+    - type: modify_prompt # This will be added to the LLM's context for its next generation
+      instruction: |
+        While the player is at the inn, they overhear hushed whispers from a nearby table.
+        Two grizzled adventurers are talking about strange lights and eerie sounds coming from the old crypts beyond the Whispering Woods.
+        This rumor should be subtly woven into the LLM's description of the inn's ambiance or as part of a minor interaction,
+        making the player aware of the crypts as a point of interest.
+    - type: add_choice # Example of a future action type, not implemented in Phase 1
+      label: "Ask the innkeeper about the old crypts."
+      action: "player_asks_about_crypts"
+
+- id: found_first_clue
+  name: "Found the First Clue"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "heard_crypt_rumor" # Must have heard the rumor
+      - type: player_action # Placeholder for a more complex trigger later
+        intent: "investigate_strange_symbols"
+      - type: location
+        value: "abandoned_shrine"
+  actions:
+    - type: set_flag
+      value: "has_first_shrine_clue"
+    - type: override_narrative
+      text: "You notice a small, almost hidden inscription on the side of the crumbling shrine. It glows faintly when you touch it. You've found something important!"
+    - type: modify_prompt
+      instruction: "The player has found a significant clue at the shrine. This should make them feel a sense of progress. The clue hints at a mechanism or a key related to the crypts."

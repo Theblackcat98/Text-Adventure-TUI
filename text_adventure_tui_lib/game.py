@@ -5,6 +5,7 @@ import importlib.resources # For accessing package data
 import yaml # For parsing story_arc.yaml
 
 import ollama  # LLM library
+from .event_manager import EventManager # Import EventManager
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
@@ -131,36 +132,39 @@ def get_player_choice(choices):
             )
 
 
-def get_llm_story_continuation(current_story_segment, player_choice, turn_number, story_arc):
+def get_llm_story_continuation(current_story_segment, player_choice, turn_number, story_arc, llm_prompt_instructions=None):
     """
-    Generates the next story segment using Ollama LLM, incorporating checkpoints.
+    Generates the next story segment using Ollama LLM, incorporating checkpoints and event prompt modifications.
     """
-    player_action_text = f"The player chose to: '{player_choice}'."
+    if llm_prompt_instructions is None:
+        llm_prompt_instructions = []
 
+    player_action_text = f"The player chose to: '{player_choice}'."
     story_context_for_llm = f"Current situation: '{current_story_segment}'\n{player_action_text}\n"
 
-    # Check for checkpoint injection
+    # Legacy Checkpoint (story_arc.yaml) injection
     if story_arc and 'checkpoints' in story_arc:
         for checkpoint in story_arc['checkpoints']:
             if checkpoint.get('turn') == turn_number:
                 injection = checkpoint.get('prompt_injection', '')
                 if injection:
-                    console.print(f"DEBUG: Checkpoint for turn {turn_number} triggered: '{injection[:100]}...'", style="debug")
-                    # Append checkpoint info to the context for the LLM
-                    story_context_for_llm += f"\nA significant event occurs: {injection}\n"
-                # Handle other checkpoint actions here in the future (e.g., force_end_game)
+                    console.print(f"DEBUG: Legacy Checkpoint for turn {turn_number} triggered: '{injection[:100]}...'", style="debug")
+                    story_context_for_llm += f"\nA significant event from the main arc occurs: {injection}\n"
                 if checkpoint.get('force_end_game'):
-                    # This needs more robust handling, perhaps returning a special signal
-                    # For now, we can prepend a note, but the LLM might ignore it.
-                    # A better way would be for game_loop to check this after this function returns.
-                    console.print("INFO: Story arc indicates game should end here.", style="info")
-                    # story_context_for_llm += "\nThe story must conclude now.\n"
+                    console.print("INFO: Legacy Story arc indicates game should end here (not yet fully handled in LLM prompt).", style="info")
                 break
+
+    # Add instructions from the new EventManager
+    if llm_prompt_instructions:
+        story_context_for_llm += "\nImportant context or events to consider for the story continuation:\n"
+        for instruction in llm_prompt_instructions:
+            story_context_for_llm += f"- {instruction}\n"
+            console.print(f"DEBUG: Adding event instruction to LLM prompt: {instruction[:100]}...", style="dim blue")
 
     prompt_content = (
         f"You are a storyteller for a text adventure game.\n"
         f"{story_context_for_llm}\n"
-        f"Continue the story from this point, weaving in any significant events seamlessly. Keep the story segment concise (1-3 paragraphs).\n"
+        f"Continue the story from this point, weaving in any significant events or context seamlessly. Keep the story segment concise (1-3 paragraphs).\n"
         f"Do not add any other text or choices, only the next part of the story."
     )
     messages = [{"role": "user", "content": prompt_content}]
@@ -337,11 +341,28 @@ def load_story_arc(arc_file_name="story_arc.yaml"):
 
 def game_loop():
     display_title()
-    story_arc_data = load_story_arc() # Load the story arc
-    turn_counter = 1 # Initialize turn counter
+    story_arc_data = load_story_arc() # Load the story arc (for checkpoints)
 
-    current_story_segment_id = "01_intro.txt" # This could also come from story_arc_data
-    # Potentially, get initial story from story_arc_data or a specific start checkpoint
+    # Initialize EventManager
+    # For now, hardcoding the event file. Later, this could be dynamic (e.g., based on story arc)
+    event_files_to_load = [("text_adventure_tui_lib.events", "general_events.yaml")]
+    event_manager = EventManager(event_files_to_load, console_instance=console) # Pass the themed console
+
+    # Initialize game_state
+    game_state = {
+        'flags': {},
+        'current_location': "eldoria_town_square", # Default starting location for event testing
+        'inventory': [],
+        'player_stats': {'health': 100},
+        'turn_counter': 1, # Moved turn_counter into game_state
+    }
+    # Potentially override starting location from story_arc_data if defined
+    if story_arc_data and story_arc_data.get('starting_location'):
+        game_state['current_location'] = story_arc_data['starting_location']
+
+    console.print(f"DEBUG: Initial game state: {game_state}", style="dim blue")
+
+    current_story_segment_id = "01_intro.txt" # This could also come from story_arc_data or an event
     story_text = load_story_part(current_story_segment_id)
 
     if not story_text:
@@ -352,70 +373,89 @@ def game_loop():
         return
 
     while True: # Main game loop
-        console.print(f"\n--- Turn {turn_counter} ---", style="bold magenta")
+        console.print(f"\n--- Turn {game_state['turn_counter']} ---", style="bold magenta")
+
+        # Initialize containers for event effects for this turn
+        llm_prompt_instructions_for_turn = [] # For modify_prompt from events
+
+        # --- PRE-LLM EVENT CHECK ---
+        # Note: For player_action triggers, we'd ideally pass raw player input here *before* it's parsed into a choice.
+        # For now, player_choice (which is the chosen text) can be a proxy, or we can defer player_action triggers.
+        # Let's assume player_choice is available for now, even if it means events trigger *after* choice selection for this iteration.
+        # A more advanced loop would get raw input -> process events -> then map to choice or LLM.
+
+        # Display current story before player makes a choice for this turn.
+        # If an event last turn resulted in an override, story_text would be that override.
         display_story(story_text)
 
-        # Get choices (LLM might be influenced by checkpoint text already injected in story_text)
-        choices = get_llm_options(story_text)
-        if not choices:
-            console.print(
-                "Warning: LLM did not provide choices or parsing failed. Using fallback choices.",  # noqa: E501
-                style="warning",
+        # Get player's choice based on the current story_text
+        player_choice_text = get_player_choice(get_llm_options(story_text)) # Assuming get_llm_options is still primary for now
+
+        if player_choice_text == "USER_QUIT":
+            console.print("\nExiting game. Thanks for playing!", style="bold green")
+            break
+        if isinstance(player_choice_text, str) and player_choice_text.strip().lower() == "quit":
+             console.print("\nExiting game based on chosen action. Thanks for playing!", style="bold green")
+             break
+
+        console.print(f"\nYou chose: [italic choice]{player_choice_text}[/italic choice]")
+
+        # Now, check events based on the current game_state and the choice made.
+        # Pass the current story_text as context.
+        # Player_input_text for event checking can be player_choice_text.
+        event_results = event_manager.check_and_trigger_events(
+            game_state,
+            player_input_text=player_choice_text,
+            current_story_segment=story_text,
+            llm_prompt_instructions=llm_prompt_instructions_for_turn
+        )
+
+        override_narrative = event_results.get("override_narrative")
+        llm_prompt_instructions_for_turn = event_results.get("modified_prompt_instructions", [])
+
+        if override_narrative is not None:
+            story_text = override_narrative # This will be displayed at the start of the next loop
+            console.print("DEBUG: Game loop received override_narrative. Story updated.", style="dim blue")
+            # If narrative is overridden, we might skip LLM story continuation for this turn,
+            # or the override_narrative becomes the new 'current_story_segment' for the LLM.
+            # For simplicity, let's assume the override_narrative IS the story for this turn's end.
+            # The LLM will then be called next turn based on this new story_text.
+        else:
+            # No override, so get story continuation from LLM
+            # Pass any accumulated llm_prompt_instructions from events
+            new_story_segment = get_llm_story_continuation(
+                current_story_segment=story_text, # The story before player action and event processing
+                player_choice=player_choice_text,
+                turn_number=game_state['turn_counter'],
+                story_arc=story_arc_data, # Legacy checkpoint system
+                llm_prompt_instructions=llm_prompt_instructions_for_turn # From new event system
             )
-            choices = hardcoded_choices[:]
-            if not choices:
+
+            if (
+                not new_story_segment
+                or new_story_segment.startswith("Error:")
+                or new_story_segment.startswith("The story seems to have hit a snag")
+            ):
                 console.print(
-                    "Critical Error: No fallback choices available. Ending game.",
+                    f"Error: Story couldn't continue. LLM response (first 100): '{new_story_segment[:100]}...'. Game over.",
                     style="danger",
                 )
                 break
+            # If we reach here, LLM call was successful and new_story_segment is valid
+            story_text = new_story_segment
 
-        player_choice = get_player_choice(choices)
-
-        if player_choice == "USER_QUIT":
-            console.print("\nExiting game. Thanks for playing!", style="bold green")
-            break
-
-        if isinstance(player_choice, str) and player_choice.strip().lower() == "quit":
-            console.print(
-                "\nExiting game based on chosen action. Thanks for playing!",
-                style="bold green",
-            )
-            break
-
-        console.print(f"\nYou chose: [italic choice]{player_choice}[/italic choice]")
-
-        # Get story continuation from LLM, potentially influenced by checkpoint
-        new_story_segment = get_llm_story_continuation(
-            current_story_segment=story_text,
-            player_choice=player_choice,
-            turn_number=turn_counter,
-            story_arc=story_arc_data
-        )
-
-        if (
-            not new_story_segment
-            or new_story_segment.startswith("Error:")
-            or new_story_segment.startswith("The story seems to have hit a snag")
-        ):
-            console.print(
-                f"Error: Story couldn't continue. LLM response (first 100): '{new_story_segment[:100]}...'. Game over.",
-                style="danger",
-            )
-            break
-        story_text = new_story_segment
-
-        # Check for forced game end from checkpoint
-        if story_arc and 'checkpoints' in story_arc:
-            for checkpoint in story_arc['checkpoints']:
-                if checkpoint.get('turn') == turn_counter and checkpoint.get('force_end_game'):
-                    console.print("\n--- The story arc has reached its conclusion ---", style="bold yellow")
-                    # Display the final segment before breaking
+        # Check for forced game end from checkpoint (from story_arc.yaml)
+        if story_arc_data and 'checkpoints' in story_arc_data:
+            for checkpoint in story_arc_data['checkpoints']:
+                if checkpoint.get('turn') == game_state['turn_counter'] and checkpoint.get('force_end_game'):
+                    console.print("\n--- The story arc (legacy checkpoint) has reached its conclusion ---", style="bold yellow")
                     display_story(story_text)
                     console.print("Thanks for playing!", style="bold green")
                     return # End the game_loop
 
-        turn_counter += 1 # Increment turn counter
+        # Event-driven game end could also be handled here if an event sets a specific flag
+
+        game_state['turn_counter'] += 1 # Increment turn counter
 
 
 if __name__ == "__main__":

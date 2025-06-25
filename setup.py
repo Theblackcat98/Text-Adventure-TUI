@@ -12,8 +12,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Theblackcat98/Text-Adventure-TUI",
-    packages=["text_adventure_tui_lib", "text_adventure_tui_lib.story_parts"], # Define packages
-    package_data={"text_adventure_tui_lib.story_parts": ["*.txt", "*.yaml"]}, # Include story_parts data including YAML
+    packages=["text_adventure_tui_lib", "text_adventure_tui_lib.story_parts", "text_adventure_tui_lib.events"], # Define packages
+    package_data={
+        "text_adventure_tui_lib.story_parts": ["*.txt", "*.yaml"],
+        "text_adventure_tui_lib.events": ["*.yaml"], # Include event YAML files
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: End Users/Desktop",
