@@ -20,7 +20,7 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: End Users/Desktop",
-        "Topic :: Games/Entertainment :: Interactive Fiction",
+        "Topic :: Games/Entertainment :: Role-Playing",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
