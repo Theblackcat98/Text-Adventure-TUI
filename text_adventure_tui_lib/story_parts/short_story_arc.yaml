@@ -1,0 +1,21 @@
+title: "The Missing Locket"
+starting_location: "village_path" # Initial location for the player
+total_turns_estimate: 10
+
+checkpoints:
+  - turn: 1 # This will be mostly superseded by the initial event, but good as a fallback.
+    prompt_injection: "The path ahead leads towards the Whispering Woods. You feel a sense of unease."
+  - turn: 4
+    prompt_injection: "Deepening shadows stretch across the path as you venture further into the woods. The air is cool and smells of damp earth and pine."
+  - turn: 7
+    prompt_injection: "You hear the gentle gurgling of a stream nearby and spot a moss-covered, ancient-looking shrine through the trees."
+    # This checkpoint helps guide the player if they haven't found the shrine via exploration/LLM.
+  - turn: 10 # Final Turn
+    prompt_injection: | # This injection will be combined with the event outcome for the locket
+      The sun begins to set, casting long, eerie shadows. It's time to head back to the village.
+      As you reflect on your search for the locket...
+    force_end_game: true
+    # The actual outcome text (locket found/not found) will be handled by an event or by checking a flag
+    # directly in the game_loop's end-game message, based on the "locket_retrieved" flag.
+    # For simplicity with current system, the event setting this flag would be primary.
+    # This checkpoint mainly ensures the game ends.

@@ -1,0 +1,26 @@
+title: "The Whispering Caves Curse"
+starting_location: "cursed_village_outskirts"
+total_turns_estimate: 30
+
+checkpoints:
+  - turn: 1
+    prompt_injection: "The outskirts of the village are eerily quiet. A sickly, grey mist clings to the ground. The few villagers you see look gaunt and fearful."
+  - turn: 5
+    prompt_injection: "You learn from a desperate villager that the affliction started a month ago, coinciding with strange whispers emanating from the nearby caves. They beg you to investigate."
+  - turn: 10 # Entering the caves
+    prompt_injection: "You stand at the mouth of the Whispering Caves. A chilling draft carries faint, unsettling whispers that seem to claw at your sanity. The way is dark and foreboding."
+  - turn: 15 # Deeper into the caves
+    prompt_injection: "The cave system splits into multiple paths. Strange phosphorescent fungi provide a dim, eerie light. The whispers are louder here, more distinct, speaking of forgotten sorrows."
+  - turn: 20 # A significant discovery or challenge
+    prompt_injection: "You find a large cavern with a crudely carved stone altar at its center. The whispers seem to originate from a pulsating, shadowy crevice behind it."
+  - turn: 25 # Approaching the source
+    prompt_injection: "The air becomes heavy and charged with an unknown energy. The crevice pulses with a sickening light, and the whispers are now a cacophony of voices, promising power and despair."
+  - turn: 29 # Climax
+    prompt_injection: "You are at the heart of the curse. The source is before you – a shadowy entity bound to an ancient artifact. It lashes out with tendrils of dark energy."
+  - turn: 30 # Resolution
+    prompt_injection: |
+      The battle is over, the artifact cleansed or destroyed. The oppressive atmosphere in the caves lifts, and the maddening whispers cease.
+      You sense that the curse on the village has been broken. Your task here is done.
+    force_end_game: true
+    # The specifics of "battle is over, artifact cleansed" would be influenced by flags set during events/LLM interactions.
+    # The game_loop or get_llm_story_continuation would need to check these flags for a truly dynamic final message.
