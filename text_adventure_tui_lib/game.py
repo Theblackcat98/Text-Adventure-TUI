@@ -131,17 +131,14 @@ def get_player_choice(
         if user_input.isdigit() and 1 <= int(user_input) <= len(all_choices):
             chosen_index = int(user_input) - 1
             if chosen_index < len(choices):
-                return all_choices[chosen_index]
+                return all_choices[chosen_index], None
             else:
                 action = added_choices[chosen_index - len(choices)]["action"]
                 if action.startswith("trigger:"):
                     event_id = action.split(":")[1]
-                    event_manager.execute_event_actions(
-                        event_id, game_state_manager, []
-                    )
-                    return "EVENT_TRIGGERED"
+                    return "EVENT_TRIGGERED", event_id
                 else:
-                    return action
+                    return action, None
 
         console.print("Invalid choice.", style="error")
 
@@ -224,13 +221,17 @@ def game_loop(story_name: str, saved_state=None):
 
         choices = get_llm_options(narrative)
         added_choices = event_results.get("added_choices", [])
-        player_choice = get_player_choice(
+        player_choice, event_to_trigger = get_player_choice(
             choices, added_choices, game_state_manager, event_manager
         )
 
         if player_choice == "EVENT_TRIGGERED":
-            narrative = game_state_manager.get_flags().get(
-                "override_narrative", narrative
+            event_results = event_manager.execute_event_actions(
+                event_to_trigger, game_state_manager, llm_instructions
+            )
+            narrative = event_results.get(
+                "override_narrative",
+                game_state_manager.get_flags().get("override_narrative", narrative),
             )
             continue
 
@@ -251,6 +252,7 @@ def game_loop(story_name: str, saved_state=None):
             display_story(text)
 
         game_state.turn_count += 1
+        game_state_manager.increment_turns_in_location()
 
 
 def main_menu():
