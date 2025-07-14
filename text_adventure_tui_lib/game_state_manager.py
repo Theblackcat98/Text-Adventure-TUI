@@ -43,4 +43,9 @@ class GameStateManager:
         return self.game_state.flags.get("current_location", "")
 
     def set_current_location(self, location: str):
-        self.game_state.flags["current_location"] = location
+        if self.get_current_location() != location:
+            self.game_state.turns_in_location = 0
+            self.game_state.flags["current_location"] = location
+
+    def increment_turns_in_location(self):
+        self.game_state.turns_in_location += 1
