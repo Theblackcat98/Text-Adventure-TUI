@@ -174,12 +174,28 @@ class EventManager:
                         str(keyword).lower() in player_input_text.lower()
                         for keyword in keywords
                     )
+            elif condition_type == "player_action":
+                met = player_input_text.lower() == condition_value.lower()
             elif condition_type == "inventory_has":
-                met = condition.get("item_id") in game_state_manager.get_inventory()
+                met = condition.get("value") in game_state_manager.get_inventory()
             elif condition_type == "inventory_not_has":
-                met = condition.get("item_id") not in game_state_manager.get_inventory()
+                met = condition.get("value") not in game_state_manager.get_inventory()
             elif condition_type == "game_start":
                 met = game_state_manager.game_state.turn_count == 0
+            elif condition_type == "turn_count_in_location":
+                operator = condition.get("operator", "==")
+                target_turns = condition.get("value")
+                current_turns = game_state_manager.game_state.turns_in_location
+                if operator == "==":
+                    met = current_turns == target_turns
+                elif operator == ">=":
+                    met = current_turns >= target_turns
+                elif operator == "<=":
+                    met = current_turns <= target_turns
+                elif operator == ">":
+                    met = current_turns > target_turns
+                elif operator == "<":
+                    met = current_turns < target_turns
 
             results.append(met)
 

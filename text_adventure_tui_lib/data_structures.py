@@ -30,3 +30,4 @@ class GameState:
     player: Player
     flags: Dict[str, bool] = field(default_factory=dict)
     turn_count: int = 0
+    turns_in_location: int = 0
