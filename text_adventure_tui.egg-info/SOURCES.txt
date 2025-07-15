@@ -3,6 +3,7 @@ MANIFEST.in
 README.md
 setup.py
 tests/test_game_basics.py
+tests/test_game_engine.py
 tests/test_new_engine.py
 text_adventure_tui.egg-info/PKG-INFO
 text_adventure_tui.egg-info/SOURCES.txt
