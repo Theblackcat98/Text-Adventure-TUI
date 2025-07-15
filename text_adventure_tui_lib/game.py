@@ -93,6 +93,31 @@ def get_llm_story_continuation(
         return "The path forward is hazy..."
 
 
+def get_player_intent(player_input: str, game_state_manager: GameStateManager) -> str:
+    """
+    Uses an LLM to determine the player's underlying intent from their action.
+    """
+    narrative_context = "The player is in a text-based adventure game."
+    prompt = (
+        f"Analyze the player's action and classify it into a single, concise intent keyword.\n"
+        f"The context is: {narrative_context}\n"
+        f"Player's action: '{player_input}'\n"
+        f"Possible intents include, but are not limited to: 'search_desk', 'read_journal', 'go_to_bluffs', 'attack', 'flee', 'talk_to_npc', 'use_item'.\n"
+        f"Respond with only the single intent keyword (e.g., 'search_desk')."
+    )
+    try:
+        response = ollama_client.chat(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0.2},
+        )
+        intent = response["message"]["content"].strip().lower().replace(" ", "_")
+        debug_print(f"Player intent classified as: '{intent}'", "info")
+        return intent
+    except Exception as e:
+        console.print(f"Error getting player intent: {e}", style="danger")
+        return "unknown_intent"
+
 def get_llm_options(current_narrative: str, game_state_manager: GameStateManager) -> tuple[str, list[str]]:
     player_stats = game_state_manager.get_stats()
     inventory = game_state_manager.get_inventory()
@@ -240,26 +265,21 @@ def game_loop(story_name: str, saved_state=None):
         event_manager.check_and_trigger_events(game_state_manager, "game_start", [])
 
     while True:
-        console.rule(f"Turn {game_state.turn_count}", style="bold magenta")
+        console.rule(f"Turn {game_state_manager.get_turn_count()}", style="bold magenta")
 
-        # --- 1. Check for pre-choice events (e.g., location-based triggers) ---
+        # --- 1. Get Scene Description and Choices from LLM ---
+        narrative, choices = get_llm_options(narrative, game_state_manager)
+        display_story(narrative)
+
+        # --- 2. Check for pre-choice events (e.g., location-based triggers) ---
         llm_instructions = []
         event_results = event_manager.check_and_trigger_events(
             game_state_manager, "", llm_instructions
         )
 
-        # Handle narrative overrides from events
-        if event_results.get("override_narrative"):
-            narrative = event_results["override_narrative"]
-
         # Display pre-narrative injections from events
         for text in event_results.get("injected_narratives_pre", []):
             display_story(text)
-
-        # --- 2. Get Scene Description and Choices from LLM ---
-        # The LLM now provides the primary narrative text for the turn
-        narrative, choices = get_llm_options(narrative, game_state_manager)
-        display_story(narrative)
 
         # --- 3. Get Player's Choice ---
         added_choices = event_results.get("added_choices", [])
@@ -280,8 +300,9 @@ def game_loop(story_name: str, saved_state=None):
         console.print(f"\n> You chose: [italic choice]{player_choice}[/italic choice]")
 
         # Check for events triggered by the player's action
+        player_intent = get_player_intent(player_choice, game_state_manager)
         event_results = event_manager.check_and_trigger_events(
-            game_state_manager, player_choice, llm_instructions
+            game_state_manager, player_choice, llm_instructions, player_intent
         )
 
         # If an event overrides the narrative, it takes precedence
