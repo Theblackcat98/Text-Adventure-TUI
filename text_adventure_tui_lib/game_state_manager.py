@@ -40,12 +40,26 @@ class GameStateManager:
     def get_current_location(self) -> str:
         # For now, we'll use a simple string for location.
         # This can be expanded later.
+        """
+        Return the current location string from the game state's flags.
+        
+        Returns:
+            str: The current location, or an empty string if not set.
+        """
         return self.game_state.flags.get("current_location", "")
 
     def set_current_location(self, location: str):
+        """
+        Set the current location in the game state and reset the turn counter if the location has changed.
+        
+        If the new location differs from the current one, the `turns_in_location` counter is reset to zero.
+        """
         if self.get_current_location() != location:
             self.game_state.turns_in_location = 0
             self.game_state.flags["current_location"] = location
 
     def increment_turns_in_location(self):
+        """
+        Increment the counter tracking the number of turns spent in the current location.
+        """
         self.game_state.turns_in_location += 1

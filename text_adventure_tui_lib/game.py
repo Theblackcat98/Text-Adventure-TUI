@@ -115,6 +115,14 @@ def get_player_choice(
     game_state_manager: GameStateManager,
     event_manager: EventManager,
 ) -> str:
+    """
+    Prompts the player to select an action from available choices or enter a command.
+    
+    Displays both LLM-generated and event-added choices, accepts a choice number or command, and returns the selected action along with an optional event ID if an event trigger is chosen.
+    
+    Returns:
+        tuple: A tuple containing the chosen action (str) and an optional event ID (str or None). If an event trigger is selected, returns ("EVENT_TRIGGERED", event_id).
+    """
     all_choices = choices + [c["label"] for c in added_choices]
 
     while True:
@@ -175,6 +183,11 @@ def save_game_state(game_state_manager: GameStateManager, event_manager: EventMa
 
 
 def game_loop(story_name: str, saved_state=None):
+    """
+    Runs the main game loop for the interactive text adventure, managing story progression, player choices, event handling, and turn tracking.
+    
+    If a saved state is provided, restores the game and event state; otherwise, initializes a new game and triggers the starting event. Each turn, displays the current narrative, checks and triggers events, presents choices to the player, processes player input (including event triggers), updates the narrative, and increments turn counters. The loop continues until externally interrupted.
+    """
     display_title()
 
     stories_path = Path(__file__).parent / "story_parts"
@@ -256,6 +269,11 @@ def game_loop(story_name: str, saved_state=None):
 
 
 def main_menu():
+    """
+    Displays the main menu for the text adventure game, allowing the player to start a new game, resume from a saved state, toggle debug mode, or quit.
+    
+    Handles Ollama client initialization and user input for menu navigation. Exits the application if Ollama initialization fails.
+    """
     global DEBUG_MODE_ENABLED, ollama_client
     try:
         ollama_client = ollama.Client(host=OLLAMA_HOST)

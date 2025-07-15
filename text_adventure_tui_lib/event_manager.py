@@ -146,6 +146,11 @@ class EventManager:
         game_state_manager: GameStateManager,
         player_input_text: str,
     ):
+        """
+        Evaluates whether a set of trigger conditions are met based on the current game state and player input.
+        
+        The trigger configuration can specify multiple conditions (such as location, flags, player actions, inventory contents, game start, or turns spent in a location) and a mode ("AND", "OR", or "MANUAL") to combine them. Returns True if the conditions are satisfied according to the specified mode; otherwise, returns False.
+        """
         conditions = trigger_config.get("conditions", [])
         mode = trigger_config.get("mode", "AND").upper()
 

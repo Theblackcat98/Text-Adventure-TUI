@@ -36,6 +36,11 @@ def test_player_action_trigger():
 
 
 def test_turn_count_in_location_trigger():
+    """
+    Test that an event with a turn count in location trigger activates when the player has spent the required number of turns in the location.
+    
+    Verifies that the event manager correctly evaluates the trigger condition based on turns spent in the current location and sets the appropriate flag in the game state when the condition is met.
+    """
     event = Event(
         id="test_event",
         name="Test",
