@@ -25,7 +25,8 @@ class GameStateManager:
         return self.game_state.player.inventory
 
     def add_item(self, item: str):
-        self.game_state.player.inventory.append(item)
+        if item not in self.game_state.player.inventory:
+            self.game_state.player.inventory.append(item)
 
     def remove_item(self, item: str):
         if item in self.game_state.player.inventory:
@@ -38,14 +39,18 @@ class GameStateManager:
         self.game_state.player.stats[stat] = value
         
     def get_current_location(self) -> str:
-        # For now, we'll use a simple string for location.
-        # This can be expanded later.
-        return self.game_state.flags.get("current_location", "")
+        return self.game_state.current_location
 
     def set_current_location(self, location: str):
-        if self.get_current_location() != location:
+        if self.game_state.current_location != location:
+            self.game_state.current_location = location
             self.game_state.turns_in_location = 0
-            self.game_state.flags["current_location"] = location
 
     def increment_turns_in_location(self):
         self.game_state.turns_in_location += 1
+
+    def get_turn_count(self) -> int:
+        return self.game_state.turn_count
+
+    def increment_turn(self):
+        self.game_state.turn_count += 1

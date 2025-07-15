@@ -73,40 +73,70 @@ def get_llm_story_continuation(
 ) -> str:
     prompt = (
         f"You are a storyteller for a text adventure game.\n"
-        f"Current situation: '{current_narrative}'\n"
+        f"This is the current situation: '{current_narrative}'.\n"
         f"The player chose to: '{player_choice}'.\n"
-        f"Important context:\n- {'\n- '.join(instructions)}\n"
-        f"Continue the story concisely (1-3 paragraphs)."
+        f"Describe the immediate outcome of this action. Do not advance the story beyond this single action.\n"
+        f"Keep it brief and focused on the result of the choice."
     )
+    if instructions:
+        prompt += f"\nImportant context to consider:\n- {'\n- '.join(instructions)}"
+
     try:
         response = ollama_client.chat(
-            model=OLLAMA_MODEL, messages=[{"role": "user", "content": prompt}]
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0.5},
         )
         return response["message"]["content"].strip()
     except Exception as e:
         console.print(f"Error getting story continuation: {e}", style="danger")
-        return "The story path is unclear..."
+        return "The path forward is hazy..."
 
 
-def get_llm_options(current_narrative: str) -> list[str]:
+def get_llm_options(current_narrative: str, game_state_manager: GameStateManager) -> tuple[str, list[str]]:
+    player_stats = game_state_manager.get_stats()
+    inventory = game_state_manager.get_inventory()
+    location = game_state_manager.get_current_location()
+
     prompt = (
-        f"You are an assistant for a text adventure game.\n"
-        f"Current situation: '{current_narrative}'\n"
-        f"Provide 4 distinct, actionable choices for the player, starting with a verb.\n"
-        f"Format as a numbered list (e.g., 1. Choice)."
+        f"You are the narrator for a text adventure game. Your job is to describe the current scene and provide clear choices for the player.\n\n"
+        f"**Current Situation:**\n{current_narrative}\n\n"
+        f"**Player Status:**\n- Location: {location}\n- Health: {player_stats.get('health', 'N/A')}\n- Inventory: {', '.join(inventory) if inventory else 'Empty'}\n\n"
+        f"**Instructions:**\n"
+        f"1.  Write a brief, one-paragraph summary of the current scene to remind the player what's happening. This will be the main narrative text.\n"
+        f"2.  Then, provide exactly 4 distinct, actionable choices for the player. Each choice must start with a verb.\n"
+        f"3.  Format your entire response as a single JSON object with two keys: 'narrative_summary' (a string) and 'choices' (a list of strings).\n\n"
+        f"Example Response:\n"
+        f'{{"narrative_summary": "You are standing at the edge of a dark forest, the wind whispering through the trees. A narrow path leads deeper into the woods, and an old, gnarled tree seems to watch you with silent judgment.", "choices": ["Enter the forest path.", "Examine the gnarled tree.", "Search the area for other paths.", "Rest for a moment."]}}'
     )
+
     try:
         response = ollama_client.chat(
-            model=OLLAMA_MODEL, messages=[{"role": "user", "content": prompt}]
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0.7},
+            format="json",
         )
-        raw_text = response["message"]["content"].strip()
-        return [
-            match.group(1).strip()
-            for match in re.finditer(r"^\s*\d+\s*[\.\)]\s*(.*)", raw_text, re.MULTILINE)
-        ]
+        raw_json_str = response["message"]["content"].strip()
+
+        # Basic cleanup for common LLM formatting mistakes
+        cleaned_json_str = raw_json_str.replace("```json", "").replace("```", "").strip()
+
+        data = json.loads(cleaned_json_str)
+
+        narrative_summary = data.get("narrative_summary", current_narrative)
+        choices = data.get("choices", [])
+
+        if not choices or len(choices) > 4:
+             raise ValueError("LLM returned an invalid number of choices.")
+
+        return narrative_summary, choices
+
     except Exception as e:
-        console.print(f"Error getting options: {e}", style="danger")
-        return ["Look around.", "Check inventory.", "Wait.", "Leave."]
+        console.print(f"Error getting LLM options: {e}", style="danger")
+        console.print(f"LLM Raw Response was: {raw_json_str}", style="debug")
+        # Fallback to a generic set of options
+        return current_narrative, ["Look around.", "Check inventory.", "Wait.", "Leave."]
 
 
 def get_player_choice(
@@ -176,82 +206,102 @@ def save_game_state(game_state_manager: GameStateManager, event_manager: EventMa
 
 def game_loop(story_name: str, saved_state=None):
     display_title()
-
     stories_path = Path(__file__).parent / "story_parts"
 
     if saved_state:
+        # Load game from save
         story, player = load_story_and_player(story_name, stories_path)
         game_state = GameState(
             current_story=story,
             player=player,
             flags=saved_state["game_state"]["flags"],
             turn_count=saved_state["game_state"]["turn_count"],
+            current_location=saved_state["game_state"]["current_location"],
+            turns_in_location=saved_state["game_state"]["turns_in_location"],
         )
+        game_state_manager = GameStateManager(game_state)
         event_manager = EventManager(story.events, console)
         event_manager.load_state(saved_state["event_manager_state"])
-        game_state_manager = GameStateManager(game_state)
+        narrative = saved_state.get("narrative", "Your story continues...")
     else:
+        # Start a new game
         story, player = load_story_and_player(story_name, stories_path)
-        game_state = GameState(
-            current_story=story,
-            player=player,
-        )
-        event_manager = EventManager(story.events, console)
+        game_state = GameState(current_story=story, player=player)
         game_state_manager = GameStateManager(game_state)
-        event_manager.execute_event_actions("story_start", game_state_manager, [])
-
-    narrative = game_state_manager.get_flags().get(
-        "override_narrative", "The story begins..."
-    )
+        event_manager = EventManager(story.events, console)
+        # Get the intro text from the story definition
+        intro_part_path = stories_path / story.initial_story_part
+        try:
+            with open(intro_part_path, "r") as f:
+                narrative = f.read()
+        except FileNotFoundError:
+            narrative = "The story begins..."
+        # Trigger any on-start events
+        event_manager.check_and_trigger_events(game_state_manager, "game_start", [])
 
     while True:
-        console.print(f"\n--- Turn {game_state.turn_count} ---", style="bold magenta")
-        display_story(narrative)
+        console.rule(f"Turn {game_state.turn_count}", style="bold magenta")
 
+        # --- 1. Check for pre-choice events (e.g., location-based triggers) ---
         llm_instructions = []
         event_results = event_manager.check_and_trigger_events(
             game_state_manager, "", llm_instructions
         )
 
+        # Handle narrative overrides from events
         if event_results.get("override_narrative"):
             narrative = event_results["override_narrative"]
 
+        # Display pre-narrative injections from events
         for text in event_results.get("injected_narratives_pre", []):
             display_story(text)
 
-        choices = get_llm_options(narrative)
+        # --- 2. Get Scene Description and Choices from LLM ---
+        # The LLM now provides the primary narrative text for the turn
+        narrative, choices = get_llm_options(narrative, game_state_manager)
+        display_story(narrative)
+
+        # --- 3. Get Player's Choice ---
         added_choices = event_results.get("added_choices", [])
         player_choice, event_to_trigger = get_player_choice(
             choices, added_choices, game_state_manager, event_manager
         )
 
+        # If the choice triggers a specific event, handle it and restart the loop
         if player_choice == "EVENT_TRIGGERED":
             event_results = event_manager.execute_event_actions(
                 event_to_trigger, game_state_manager, llm_instructions
             )
-            narrative = event_results.get(
-                "override_narrative",
-                game_state_manager.get_flags().get("override_narrative", narrative),
-            )
+            # Update narrative if the event overrides it, otherwise keep current
+            narrative = event_results.get("override_narrative", narrative)
             continue
 
-        console.print(f"\nYou chose: [italic choice]{player_choice}[/italic choice]")
+        # --- 4. Process Player's Choice ---
+        console.print(f"\n> You chose: [italic choice]{player_choice}[/italic choice]")
 
+        # Check for events triggered by the player's action
         event_results = event_manager.check_and_trigger_events(
             game_state_manager, player_choice, llm_instructions
         )
 
+        # If an event overrides the narrative, it takes precedence
         if event_results.get("override_narrative"):
             narrative = event_results["override_narrative"]
         else:
-            narrative = get_llm_story_continuation(
+            # Otherwise, get the outcome of the action from the LLM
+            action_outcome = get_llm_story_continuation(
                 narrative, player_choice, llm_instructions
             )
+            # The outcome becomes the starting point for the next turn's narrative
+            narrative = action_outcome
+            display_story(action_outcome)
 
+        # Display post-narrative injections from events
         for text in event_results.get("injected_narratives_post", []):
             display_story(text)
 
-        game_state.turn_count += 1
+        # --- 5. Advance Game State ---
+        game_state_manager.increment_turn()
         game_state_manager.increment_turns_in_location()
 
 
