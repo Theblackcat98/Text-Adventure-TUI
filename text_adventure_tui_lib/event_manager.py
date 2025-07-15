@@ -40,6 +40,7 @@ class EventManager:
         game_state_manager: GameStateManager,
         player_input_text: str,
         llm_prompt_instructions: list[str],
+        player_intent: str = "",
     ):
         triggered_override_narrative = None
         injected_narratives_pre = []
@@ -54,7 +55,7 @@ class EventManager:
                 continue
 
             if self._evaluate_trigger(
-                event.trigger, game_state_manager, player_input_text
+                event.trigger, game_state_manager, player_input_text, player_intent
             ):
                 self.console.print(
                     f"DEBUG: Event '{event_id}' triggered!", style="green"
@@ -145,6 +146,7 @@ class EventManager:
         trigger_config,
         game_state_manager: GameStateManager,
         player_input_text: str,
+        player_intent: str,
     ):
         conditions = trigger_config.get("conditions", [])
         mode = trigger_config.get("mode", "AND").upper()
@@ -174,6 +176,8 @@ class EventManager:
                         str(keyword).lower() in player_input_text.lower()
                         for keyword in keywords
                     )
+            elif condition_type == "player_intent":
+                met = player_intent == condition_value
             elif condition_type == "player_action":
                 met = player_input_text.lower() == condition_value.lower()
             elif condition_type == "inventory_has":

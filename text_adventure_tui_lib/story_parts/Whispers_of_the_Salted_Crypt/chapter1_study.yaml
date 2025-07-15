@@ -7,8 +7,8 @@
     conditions:
       - type: location
         value: "elian_study"
-      - type: player_action
-        value: "search_desk" # Changed from 'intent' to 'value'
+      - type: player_intent
+        value: "search_desk"
       - type: flag_not_set
         value: "has_journal"
   actions:
@@ -33,8 +33,8 @@
   trigger:
     mode: AND
     conditions:
-      - type: player_action
-        value: "read_journal" # Changed from 'intent' to 'value'
+      - type: player_intent
+        value: "read_journal"
       - type: inventory_has
         item_id: "elians_journal"
       - type: flag_not_set
@@ -62,8 +62,8 @@
     conditions:
       - type: location
         value: "elian_study"
-      - type: player_action
-        value: "search_bookshelf" # Changed from 'intent' to 'value'
+      - type: player_intent
+        value: "search_bookshelf"
       - type: flag_is_set
         value: "knows_about_bluffs"
       - type: flag_not_set
