@@ -22,6 +22,17 @@ class Story:
     id: str
     title: str
     events: List[Event] = field(default_factory=list)
+    # Story arc metadata
+    starting_location: str = "start"
+    initial_story_part: str = "01_intro.txt"
+    total_turns_estimate: int = 20
+    description: str = ""
+    checkpoints: List[Dict[str, Any]] = field(default_factory=list)
+    tags: List[str] = field(default_factory=list)
+    difficulty: str = "medium"
+    content_warnings: List[str] = field(default_factory=list)
+    author: str = "Unknown"
+    version: str = "1.0"
 
 
 @dataclass

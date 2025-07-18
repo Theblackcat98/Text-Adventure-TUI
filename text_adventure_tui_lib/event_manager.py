@@ -130,9 +130,28 @@ class EventManager:
                 else:
                     injected_post.append(text_to_inject)
             elif action_type == "add_choice":
-                added_choices.append(action)
+                # Single choice addition
+                choice_data = {
+                    "label": action.get("label", "Unknown Choice"),
+                    "action": action.get("action", "")
+                }
+                added_choices.append(choice_data)
             elif action_type == "present_choices":
-                added_choices.extend(action.get("choices", []))
+                # Multiple choice presentation
+                choices = action.get("choices", [])
+                for choice in choices:
+                    choice_data = {
+                        "label": choice.get("label", "Unknown Choice"),
+                        "action": choice.get("action", "")
+                    }
+                    added_choices.append(choice_data)
+            elif action_type == "end_game":
+                # End the game with success/failure
+                success = action.get("success", True)
+                message = action.get("message", "The story ends here.")
+                game_state_manager.set_flag("game_ended")
+                game_state_manager.set_flag(f"game_ended_{'success' if success else 'failure'}")
+                override_narrative = message
 
         return {
             "override_narrative": override_narrative,
@@ -200,6 +219,35 @@ class EventManager:
                     met = current_turns > target_turns
                 elif operator == "<":
                     met = current_turns < target_turns
+            elif condition_type == "turn_count_global":
+                operator = condition.get("operator", "==")
+                target_turns = condition.get("value")
+                current_turns = game_state_manager.game_state.turn_count
+                if operator == "==":
+                    met = current_turns == target_turns
+                elif operator == ">=":
+                    met = current_turns >= target_turns
+                elif operator == "<=":
+                    met = current_turns <= target_turns
+                elif operator == ">":
+                    met = current_turns > target_turns
+                elif operator == "<":
+                    met = current_turns < target_turns
+            elif condition_type == "stat_check":
+                stat_name = condition.get("stat")
+                operator = condition.get("operator", ">=")
+                target_value = condition.get("value")
+                current_value = game_state_manager.get_stats().get(stat_name, 0)
+                if operator == "==":
+                    met = current_value == target_value
+                elif operator == ">=":
+                    met = current_value >= target_value
+                elif operator == "<=":
+                    met = current_value <= target_value
+                elif operator == ">":
+                    met = current_value > target_value
+                elif operator == "<":
+                    met = current_value < target_value
 
             results.append(met)
 
@@ -208,3 +256,26 @@ class EventManager:
         elif mode == "OR":
             return any(results)
         return False
+
+    def execute_event_actions(
+        self, 
+        event_id: str, 
+        game_state_manager: GameStateManager, 
+        llm_prompt_instructions: list[str]
+    ):
+        """Execute actions for a specific event by ID."""
+        event = self.events.get(event_id)
+        if not event:
+            return {
+                "override_narrative": None,
+                "modified_prompt_instructions": llm_prompt_instructions,
+                "injected_narratives_pre": [],
+                "injected_narratives_post": [],
+                "added_choices": [],
+            }
+        
+        # Mark event as triggered if it's a once-only event
+        if event.options.get("once", False):
+            self.triggered_event_ids.add(event_id)
+        
+        return self._perform_actions(event, game_state_manager, llm_prompt_instructions)
