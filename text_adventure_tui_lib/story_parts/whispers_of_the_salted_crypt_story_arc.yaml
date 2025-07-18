@@ -1,0 +1,47 @@
+title: "Whispers of the Salted Crypt"
+starting_location: "elian_study"
+initial_story_part: "01_intro.txt"
+total_turns_estimate: 25
+
+# Initial player setup
+initial_inventory: []
+initial_player_stats:
+  health: 100
+  sanity: 100
+  knowledge: 10
+
+# Story description and metadata
+description: |
+  Your mentor Master Elian has vanished without a trace. His obsession with the legendary
+  Salted Crypt may hold the key to his disappearance. Search his study, follow the clues,
+  and brave the dangers of the coastal crypts to rescue him before it's too late.
+
+# Story checkpoints for pacing
+checkpoints:
+  - turn: 15
+    prompt_injection: "Time is running short. You feel an increasing urgency to find Master Elian."
+  - turn: 25
+    force_end_game: true
+    prompt_injection: "The tide is rising again, and you must make your final choice."
+    flag_messages:
+      - flag: "elian_is_found"
+        message_if_set: "You successfully rescued Master Elian from the Salted Crypt! He owes you his life, and the mysteries you've uncovered will fuel many future adventures."
+        message_if_not_set: "Despite your best efforts, you were unable to locate Master Elian. The Salted Crypt keeps its secrets, and his fate remains unknown..."
+
+# Story tags for categorization
+tags:
+  - "mystery"
+  - "adventure"
+  - "coastal"
+  - "rescue"
+  - "mentor"
+
+# Difficulty and content warnings
+difficulty: "beginner"
+content_warnings:
+  - "mild peril"
+  - "mysterious disappearance"
+
+# Author information
+author: "Text Adventure TUI Team"
+version: "1.0"

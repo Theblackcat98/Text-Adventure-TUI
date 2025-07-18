@@ -1,0 +1,47 @@
+title: "The Clockwork Heist"
+starting_location: "thieves_den"
+initial_story_part: "clockwork_intro.txt"
+total_turns_estimate: 15
+
+# Initial player setup
+initial_inventory: ["lockpicks", "smoke_bomb"]
+initial_player_stats:
+  health: 100
+  stealth: 80
+  cunning: 70
+
+# Story description and metadata
+description: |
+  You're a master thief planning the heist of a lifetime. The Clockwork Museum houses
+  the legendary Temporal Gear, a device said to control time itself. But the museum's
+  security is formidable, and you'll need all your skills to pull off this daring theft.
+
+# Story checkpoints for pacing
+checkpoints:
+  - turn: 10
+    prompt_injection: "Security is tightening. You need to move quickly now."
+  - turn: 15
+    force_end_game: true
+    prompt_injection: "This is your final chance to escape with the prize."
+    flag_messages:
+      - flag: "has_temporal_gear"
+        message_if_set: "You've successfully stolen the Temporal Gear! As you escape into the night, you feel the device's power thrumming in your hands. This heist will be remembered forever."
+        message_if_not_set: "The heist has gone wrong. Alarms blare as you flee empty-handed into the night. Perhaps next time you'll be more careful..."
+
+# Story tags for categorization
+tags:
+  - "heist"
+  - "stealth"
+  - "urban"
+  - "crime"
+  - "fantasy"
+
+# Difficulty and content warnings
+difficulty: "medium"
+content_warnings:
+  - "theft"
+  - "mild violence"
+
+# Author information
+author: "Text Adventure TUI Team"
+version: "1.0"

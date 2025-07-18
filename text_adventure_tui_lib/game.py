@@ -16,6 +16,7 @@ from .data_structures import GameState, Player
 from .event_manager import EventManager
 from .yaml_loader import load_story_and_player
 from .game_state_manager import GameStateManager
+from .story_manager import StoryManager
 
 # --- Configuration ---
 custom_theme = Theme(
@@ -251,9 +252,14 @@ def game_loop(story_name: str, saved_state=None):
     else:
         # Start a new game
         story, player = load_story_and_player(story_name, stories_path)
-        game_state = GameState(current_story=story, player=player)
+        game_state = GameState(
+            current_story=story, 
+            player=player,
+            current_location=story.starting_location
+        )
         game_state_manager = GameStateManager(game_state)
         event_manager = EventManager(story.events, console)
+        
         # Get the intro text from the story definition
         intro_part_path = stories_path / story.initial_story_part
         try:
@@ -261,8 +267,11 @@ def game_loop(story_name: str, saved_state=None):
                 narrative = f.read()
         except FileNotFoundError:
             narrative = "The story begins..."
-        # Trigger any on-start events
-        event_manager.check_and_trigger_events(game_state_manager, "game_start", [])
+        
+        # Trigger the story_start event manually
+        story_start_results = event_manager.execute_event_actions("story_start", game_state_manager, [])
+        if story_start_results.get("override_narrative"):
+            narrative = story_start_results["override_narrative"]
 
     while True:
         console.rule(f"Turn {game_state_manager.get_turn_count()}", style="bold magenta")
@@ -321,9 +330,51 @@ def game_loop(story_name: str, saved_state=None):
         for text in event_results.get("injected_narratives_post", []):
             display_story(text)
 
-        # --- 5. Advance Game State ---
+        # --- 5. Check for Game End Conditions ---
+        if game_state_manager.get_flags().get("game_ended", False):
+            console.print("\n" + "="*50, style="bold magenta")
+            if game_state_manager.get_flags().get("game_ended_success", False):
+                console.print("🎉 STORY COMPLETED SUCCESSFULLY! 🎉", style="bold green")
+            else:
+                console.print("💀 STORY ENDED 💀", style="bold red")
+            console.print("="*50, style="bold magenta")
+            
+            console.print("\nThank you for playing!", style="info")
+            input("\nPress Enter to return to the main menu...")
+            break
+
+        # --- 6. Advance Game State ---
         game_state_manager.increment_turn()
         game_state_manager.increment_turns_in_location()
+        
+        # Check for story checkpoints
+        current_turn = game_state_manager.get_turn_count()
+        for checkpoint in story.checkpoints:
+            if checkpoint.get("turn") == current_turn:
+                if checkpoint.get("prompt_injection"):
+                    llm_instructions.append(checkpoint["prompt_injection"])
+                if checkpoint.get("force_end_game"):
+                    # Handle checkpoint ending
+                    end_message = "The story reaches its conclusion."
+                    flag_messages = checkpoint.get("flag_messages", [])
+                    for flag_msg in flag_messages:
+                        flag_name = flag_msg.get("flag")
+                        if game_state_manager.get_flags().get(flag_name, False):
+                            if flag_msg.get("message_if_set"):
+                                end_message = flag_msg["message_if_set"]
+                                break
+                        else:
+                            if flag_msg.get("message_if_not_set"):
+                                end_message = flag_msg["message_if_not_set"]
+                                break
+                    
+                    display_story(end_message)
+                    console.print("\n" + "="*50, style="bold magenta")
+                    console.print("📖 STORY CONCLUDED 📖", style="bold cyan")
+                    console.print("="*50, style="bold magenta")
+                    console.print("\nThank you for playing!", style="info")
+                    input("\nPress Enter to return to the main menu...")
+                    return
 
 
 def main_menu():
@@ -334,38 +385,81 @@ def main_menu():
         console.print(f"Ollama client init failed: {e}", style="error")
         sys.exit(1)
 
+    # Initialize story manager
+    stories_path = Path(__file__).parent / "story_parts"
+    events_path = Path(__file__).parent / "events"
+    story_manager = StoryManager(stories_path, events_path)
+
     while True:
         display_title()
-        console.print("1. Start New Game (Whispers of the Salted Crypt)")
-        console.print("2. Resume Game")
-        console.print("3. Toggle Debug")
-        console.print("4. Quit")
+        
+        # Discover available stories
+        available_stories = story_manager.discover_stories()
+        
+        if available_stories:
+            console.print("Available Stories:", style="bold cyan")
+            for i, story in enumerate(available_stories, 1):
+                difficulty_color = {
+                    "beginner": "green",
+                    "medium": "yellow", 
+                    "hard": "red",
+                    "expert": "bold red"
+                }.get(story.difficulty, "white")
+                
+                console.print(f"{i}. [bold]{story.title}[/bold] by {story.author}")
+                console.print(f"   [{difficulty_color}]{story.difficulty.title()}[/{difficulty_color}] • ~{story.total_turns_estimate} turns")
+                if story.tags:
+                    console.print(f"   Tags: {', '.join(story.tags)}")
+                console.print(f"   {story.description[:100]}{'...' if len(story.description) > 100 else ''}")
+                console.print()
+            
+            console.print(f"{len(available_stories) + 1}. Resume Game")
+            console.print(f"{len(available_stories) + 2}. Toggle Debug Output ({'ON' if DEBUG_MODE_ENABLED else 'OFF'})")
+            console.print(f"{len(available_stories) + 3}. Quit")
+        else:
+            console.print("No stories found!", style="error")
+            console.print("1. Toggle Debug Output")
+            console.print("2. Quit")
 
         choice = Prompt.ask("Choose an option").strip()
 
-        if choice == "1":
-            game_loop("Whispers_of_the_Salted_Crypt")
-        elif choice == "2":
-            saves = sorted(
-                SAVE_GAME_PATH.glob("*.json"), key=os.path.getmtime, reverse=True
-            )
-            if not saves:
-                console.print("No saves found.", "warning")
-                continue
-            for i, s in enumerate(saves):
-                console.print(f"{i + 1}. {s.name}")
-            save_choice = Prompt.ask("Select a save").strip()
-            if save_choice.isdigit() and 1 <= int(save_choice) <= len(saves):
-                with open(saves[int(save_choice) - 1], "r") as f:
-                    saved_data = json.load(f)
-                game_loop(saved_data["game_state"]["current_story"]["id"], saved_data)
-        elif choice == "3":
-            DEBUG_MODE_ENABLED = not DEBUG_MODE_ENABLED
-            console.print(
-                f"Debug mode is now {'ON' if DEBUG_MODE_ENABLED else 'OFF'}", "info"
-            )
-        elif choice == "4":
-            break
+        if choice.isdigit():
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(available_stories):
+                selected_story = available_stories[choice_num - 1]
+                console.print(f"\nStarting: [bold]{selected_story.title}[/bold]")
+                if selected_story.content_warnings:
+                    console.print(f"Content warnings: {', '.join(selected_story.content_warnings)}", style="warning")
+                    if not Prompt.ask("Continue? (y/n)", default="y").lower().startswith('y'):
+                        continue
+                game_loop(selected_story.id)
+            elif choice_num == len(available_stories) + 1:
+                # Resume Game
+                saves = sorted(
+                    SAVE_GAME_PATH.glob("*.json"), key=os.path.getmtime, reverse=True
+                )
+                if not saves:
+                    console.print("No saves found.", style="warning")
+                    continue
+                console.print("\nAvailable saves:")
+                for i, s in enumerate(saves):
+                    console.print(f"{i + 1}. {s.name}")
+                save_choice = Prompt.ask("Select a save").strip()
+                if save_choice.isdigit() and 1 <= int(save_choice) <= len(saves):
+                    with open(saves[int(save_choice) - 1], "r") as f:
+                        saved_data = json.load(f)
+                    game_loop(saved_data["game_state"]["current_story"]["id"], saved_data)
+            elif choice_num == len(available_stories) + 2:
+                # Toggle Debug
+                DEBUG_MODE_ENABLED = not DEBUG_MODE_ENABLED
+                console.print(
+                    f"Debug mode is now {'ON' if DEBUG_MODE_ENABLED else 'OFF'}", style="info"
+                )
+            elif choice_num == len(available_stories) + 3:
+                # Quit
+                break
+        else:
+            console.print("Invalid choice.", style="error")
 
 
 if __name__ == "__main__":
