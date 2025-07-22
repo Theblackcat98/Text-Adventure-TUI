@@ -21,6 +21,31 @@ A terminal-based text adventure game engine powered by LLM (Large Language Model
 3. **Install dependencies**: `pip install -r requirements.txt`
 4. **Run the game**: `python -m text_adventure_tui_lib.game`
 
+### Installation Verification
+
+After installation, verify everything is working correctly:
+
+```bash
+# Test story validation tool
+python story_tool.py validate
+# Should show: "🎉 All stories are valid!"
+
+# List available stories
+python story_tool.py list
+# Should show both example stories
+
+# Test game module import
+python -c "from text_adventure_tui_lib.game import main_menu; print('✅ Game engine ready!')"
+
+# Run the game (requires Ollama to be running)
+python -m text_adventure_tui_lib.game
+```
+
+If any of these commands fail, check that:
+- All dependencies are installed: `pip install -r requirements.txt`
+- Ollama is running: `ollama serve` (in a separate terminal)
+- You have a compatible Python version (3.7+)
+
 ## Story Structure
 
 Stories are defined using YAML files with the following structure:

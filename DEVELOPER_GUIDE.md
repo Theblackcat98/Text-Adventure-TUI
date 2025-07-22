@@ -154,6 +154,169 @@ python story_tool.py validate my_story
 - Check narrative flow
 - Refine based on feedback
 
+## Step-by-Step Story Creation Tutorial
+
+Let's create a simple story called "The Mysterious Key" from scratch:
+
+### Step 1: Create the Story Template
+
+```bash
+python story_tool.py create mysterious_key "The Mysterious Key" --author "Your Name"
+```
+
+This creates three files:
+- `mysterious_key_story_arc.yaml` - Story metadata
+- `mysterious_key_story_events.yaml` - Interactive events
+- `mysterious_key_intro.txt` - Opening narrative
+
+### Step 2: Edit the Story Arc
+
+Edit `mysterious_key_story_arc.yaml`:
+
+```yaml
+title: "The Mysterious Key"
+starting_location: "old_attic"
+initial_story_part: "mysterious_key_intro.txt"
+total_turns_estimate: 10
+
+initial_inventory: []
+initial_player_stats:
+  health: 100
+  curiosity: 50
+
+description: |
+  You've inherited your grandmother's house and discovered a mysterious key
+  in the attic. What secrets does it unlock?
+
+checkpoints:
+  - turn: 8
+    prompt_injection: "Time is running short. You feel compelled to solve this mystery."
+
+tags: ["mystery", "family", "short"]
+difficulty: "beginner"
+content_warnings: []
+author: "Your Name"
+version: "1.0"
+```
+
+### Step 3: Create the Opening Narrative
+
+Edit `mysterious_key_intro.txt`:
+
+```
+The dusty attic creaks under your footsteps as you explore your late grandmother's house. 
+Sunlight filters through a small window, illuminating floating dust motes and forgotten 
+treasures. In an old wooden chest, your fingers close around something cold and metallic - 
+an ornate brass key with strange symbols etched into its surface.
+
+What door could this mysterious key possibly open?
+```
+
+### Step 4: Design Interactive Events
+
+Edit `mysterious_key_story_events.yaml`:
+
+```yaml
+# Story initialization
+- id: story_start
+  name: "Discovery in the Attic"
+  trigger:
+    mode: MANUAL
+    conditions:
+      - type: game_start
+  actions:
+    - type: set_flag
+      value: "has_mysterious_key"
+    - type: add_item
+      value: "brass_key"
+    - type: change_location
+      value: "old_attic"
+
+# First investigation
+- id: examine_key
+  name: "Examining the Key"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["examine key", "look at key", "inspect key"]
+      - type: inventory_has
+        value: "brass_key"
+  actions:
+    - type: set_flag
+      value: "knows_key_symbols"
+    - type: override_narrative
+      text: |
+        The brass key is heavier than it looks. Strange symbols are etched along its length - 
+        they look like they might be some kind of family crest. You remember seeing similar 
+        symbols somewhere else in the house...
+
+# Finding the locked door
+- id: find_locked_door
+  name: "The Hidden Door"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["go downstairs", "leave attic", "explore house"]
+      - type: flag_set
+        value: "knows_key_symbols"
+  actions:
+    - type: change_location
+      value: "basement"
+    - type: override_narrative
+      text: |
+        As you explore the house, you notice a small door hidden behind a bookshelf 
+        in the basement. The same symbols from the key are carved into the door frame!
+
+# Using the key
+- id: unlock_door
+  name: "Unlocking the Mystery"
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["use key", "unlock door", "open door"]
+      - type: location
+        value: "basement"
+      - type: inventory_has
+        value: "brass_key"
+  actions:
+    - type: end_game
+      success: true
+      message: |
+        The key turns smoothly in the lock. Behind the door, you discover your 
+        grandmother's secret study, filled with journals documenting your family's 
+        fascinating history. You've uncovered a treasure more valuable than gold - 
+        the story of your heritage.
+```
+
+### Step 5: Validate and Test
+
+```bash
+# Validate the story structure
+python story_tool.py validate mysterious_key
+
+# Test the story in the game
+python -m text_adventure_tui_lib.game
+# Select "The Mysterious Key" from the menu
+```
+
+### Step 6: Iterate and Improve
+
+Based on testing:
+- Add more interactive elements
+- Create branching paths
+- Add inventory puzzles
+- Enhance narrative descriptions
+- Test edge cases
+
+This tutorial demonstrates the complete process from concept to playable story!
+
 ## Advanced Event Patterns
 
 ### Progressive Revelation
@@ -245,6 +408,51 @@ The engine uses several techniques to guide LLM generation:
 
 ## Testing and Debugging
 
+### Running Tests
+
+The project includes comprehensive tests to ensure the game engine works correctly:
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific test file
+python tests/test_game_engine.py
+
+# Run tests with coverage
+python -m pytest tests/ --cov=text_adventure_tui_lib --cov-report=html
+```
+
+### Test Structure
+
+The test suite includes:
+- **test_game_basics.py** - Basic functionality tests
+- **test_game_engine.py** - Core engine component tests
+- **test_new_engine.py** - Advanced engine feature tests
+
+### Adding New Tests
+
+When adding new features, create corresponding tests:
+
+```python
+# Example test structure
+import pytest
+from text_adventure_tui_lib.your_module import YourClass
+
+def test_your_feature():
+    # Arrange
+    instance = YourClass()
+    
+    # Act
+    result = instance.your_method()
+    
+    # Assert
+    assert result == expected_value
+```
+
 ### Debug Mode
 Enable debug mode to see:
 - Event trigger evaluations
@@ -262,6 +470,25 @@ python story_tool.py validate
 
 # Get detailed story information
 python story_tool.py info my_story
+```
+
+### Testing Stories
+
+When creating new stories, test them thoroughly:
+
+```bash
+# 1. Validate story structure
+python story_tool.py validate your_story
+
+# 2. Test in debug mode
+python -m text_adventure_tui_lib.game
+# Select your story and enable debug mode
+
+# 3. Test all story paths
+# Play through different choices to ensure all events trigger correctly
+
+# 4. Verify save/load functionality
+# Use /save and /load commands during gameplay
 ```
 
 ### Common Issues
