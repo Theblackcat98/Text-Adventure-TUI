@@ -39,7 +39,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "text-adventure-tui=text_adventure_tui_lib.game:game_loop", # Updated entry point
+            "text-adventure-tui=text_adventure_tui_lib.game:main_menu", # Fixed entry point
         ],
     },
     include_package_data=True, # Ensures MANIFEST.in is processed
