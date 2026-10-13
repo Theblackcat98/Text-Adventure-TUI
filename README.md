@@ -88,7 +88,8 @@ Events define the interactive elements of your story:
 - id: event_id
   name: "Event Name"
   options:
-    once: true  # Optional: event triggers only once
+    once: true  # Optional: event triggers only once per playthrough
+    once_per_location: true  # Optional: event re-arms when the player travels
   trigger:
     mode: AND  # AND, OR, or MANUAL
     conditions:
@@ -109,15 +110,27 @@ Events define the interactive elements of your story:
           action: "choice_action_2"
 ```
 
+**Engine guarantees worth knowing:**
+
+- `add_item` accepts either `value:` or `item_id:`; a malformed action is skipped.
+- An `override_narrative` takes narrative precedence (first in load order wins),
+  but it no longer stops the pass — later events' state changes still apply.
+- Each event fires at most once per turn, so input-independent events (location
+  ambiance, restlessness) don't double-fire in the pre-choice and choice passes.
+- `/force_event <id>` is idempotent for guarded events (`once` /
+  `once_per_location`); repeatable events re-apply, as expected for a debug tool.
+- Non-numeric stats in `update_stat` fall back to a base of 0 instead of crashing.
+
 ## Event System
 
 ### Trigger Types
 - `location`: Player is in a specific location
 - `flag_set`/`flag_not_set`: Check game flags
-- `player_action_keyword`: Match keywords in player input
+- `player_action_keyword`: Match keywords in player input (case-insensitive substring by default; add `match: word` for whole-word matching)
 - `player_intent`: Match player's intended action
 - `player_action`: Exact action match
 - `inventory_has`/`inventory_not_has`: Check inventory
+- `inventory_count`: Number of items carried (supports `==`, `>=`, `<=`, `>`, `<`) — used for the capacity-2 "hands full" warning
 - `turn_count_in_location`: Time spent in location
 - `turn_count_global`: Total game turns
 - `stat_check`: Check player statistics

@@ -15,7 +15,7 @@ import json
 
 import pytest
 
-from text_adventure_tui_lib.data_structures import GameState
+from text_adventure_tui_lib.data_structures import GameState, Player
 from text_adventure_tui_lib.game_state_manager import GameStateManager
 
 from text_adventure_tui_lib.yaml_loader import load_story_and_player
@@ -29,34 +29,18 @@ from yaml_sim import (
     explore,
 )
 
-# Events in the shipped Whispers story that are unreachable in normal play
-# because `add_item` reads the wrong YAML key (see test file for details),
-# plus the stat-check event whose threshold (health <= 25) no shipped stat
-# change can reach.
-WHISPERS_UNREACHABLE = {
-    "low_health_warning",
-    "read_journal_clue",
-    "find_hidden_key",
-    "arrive_at_bluffs",
-    "tide_recedes",
-    "enter_the_crypt",
-    "rescue_elian",
-    "end_story_success_heroic",
+# The two ending events are `player_action` exact matches whose action ids
+# surface as the choices rescue_elian offers via present_choices, so they only
+# fire in the corpus that includes raw action ids (or after that choice is
+# picked). low_health_warning stays dormant until a shipped story can deal
+# enough damage to bring health <= 25 (best case today: 80).
+WHISPERS_UNREACHABLE_PLAIN = {
     "end_story_success_cautious",
+    "end_story_success_heroic",
+    "low_health_warning",
 }
 
-WHISPERS_REACHABLE = {
-    "story_start",
-    "find_elians_journal",
-    "inventory_full_warning",
-    "first_time_in_location",
-    "long_time_in_location",
-    "help_command",
-    "debug_info",
-}
-
-# Item strings that SHOULD end up in the inventory once their events fire.
-BUG_BLOCKED_ITEMS = ("elians_journal", "runic_key", "temporal_gear")
+LOW_HEALTH_ONLY = {"low_health_warning"}
 
 
 # ---------------------------------------------------------------------------
@@ -92,20 +76,24 @@ def clockwork_explored():
 
 def test_whispers_exhaustive_reachability(whispers_explored):
     states, fired, terminals = whispers_explored
-    assert len(states) >= 15, "explorer found suspiciously few states"
-    assert fired == WHISPERS_REACHABLE
-    assert set(SimulatedGame(WHISPERS).em.events) - fired == WHISPERS_UNREACHABLE
-    # No ending is reachable: no terminal states exist in normal play.
+    assert len(states) >= 100, "explorer found suspiciously few states"
+    assert set(SimulatedGame(WHISPERS).em.events) - fired == WHISPERS_UNREACHABLE_PLAIN
+    # The whole journal -> journal-entry -> key -> bluffs -> crypt -> rescue
+    # chain is reachable again now that add_item works.
+    for event_id in ("read_journal_clue", "find_hidden_key", "arrive_at_bluffs",
+                     "tide_recedes", "enter_the_crypt", "rescue_elian"):
+        assert event_id in fired
+    # Endings only fire via the raw action ids of rescue_elian's choices.
     assert terminals == set()
 
 
-def test_whispers_inventory_never_gets_real_items(whispers_explored):
+def test_whispers_reachable_inventory_contents(whispers_explored):
     states, _, _ = whispers_explored
+    seen = set()
     for game in states.values():
-        items = {str(i) for i in game.inventory()}
-        assert not (items & set(BUG_BLOCKED_ITEMS))
-        # add_item's key mismatch appends None once find_elians_journal fires.
-        assert items <= {"None"}
+        seen.update(str(i) for i in game.inventory())
+    assert {"elians_journal", "runic_key"} <= seen
+    assert None not in seen
 
 
 def test_whispers_health_stays_full(whispers_explored):
@@ -117,7 +105,7 @@ def test_whispers_health_stays_full(whispers_explored):
 def test_clockwork_exhaustive_reachability(clockwork_explored):
     states, fired, terminals = clockwork_explored
     assert len(states) >= 400, "explorer found suspiciously few states"
-    assert fired == set(SimulatedGame(CLOCKWORK).em.events) - {"low_health_warning"}
+    assert set(SimulatedGame(CLOCKWORK).em.events) - fired == LOW_HEALTH_ONLY
     # All three escape endings are reachable, so terminal states exist.
     assert terminals
     for signature in terminals:
@@ -134,17 +122,19 @@ def test_clockwork_min_reachable_health(clockwork_explored):
     assert min(healths) > 25  # low_health_warning threshold is unreachable
 
 
-def test_whispers_raw_action_ids_bypass_authored_gating(whispers_raw_explored):
-    """EDGE CASE: typing an internal action id (as LLM choices surface them)
-    fires the exact-match ending events directly, skipping the authored
-    gate event (rescue_elian) that is supposed to offer them."""
+def test_whispers_endings_reachable_via_choice_actions(whispers_raw_explored):
+    """The ending events are `player_action` exact matches whose action ids are
+    what rescue_elian's present_choices return when the player picks one, so
+    they fire once those ids reach the event pass."""
     _, fired, terminals = whispers_raw_explored
+    assert "rescue_elian" in fired
     assert "end_story_success_heroic" in fired
     assert "end_story_success_cautious" in fired
-    assert terminals  # the story can be "finished" this way
-    # ...but the authored chain that should lead there is still blocked:
-    assert "rescue_elian" not in fired
-    assert "read_journal_clue" not in fired
+    assert terminals  # the story can actually be finished
+    for signature in terminals:
+        assert "game_ended" in set(signature[0])
+    # low_health_warning remains dormant: no story damage can reach health 25.
+    assert "low_health_warning" not in fired
 
 
 # ---------------------------------------------------------------------------
@@ -294,25 +284,38 @@ def test_every_whispers_desk_keyword_finds_journal(keyword):
     ("arrive_at_bluffs", ["search desk", "read journal", "search bookshelf"],
      "go to bluffs"),
     ("enter_the_crypt",
-     ["search desk", "read journal", "search bookshelf", "go to bluffs"],
-     "enter archway"),
+     ["search desk", "read journal", "search bookshelf", "go to bluffs",
+      "wait", "wait", "wait", "wait"],  # let the tide recede first
+     "enter crypt"),
     ("rescue_elian",
      ["search desk", "read journal", "search bookshelf", "go to bluffs",
-      "enter crypt"],
+      "wait", "wait", "wait", "wait", "enter crypt"],
      "use key"),
 ])
-@pytest.mark.xfail(
-    reason="BUG: add_item reads action['item_id'] but shipped YAML writes "
-           "'value:', so inventory gates (inventory_has) never pass",
-    strict=True,
-)
-def test_blocked_whispers_chain_should_fire(event_id, prefix, keyword):
+def test_whispers_chain_events_fire(event_id, prefix, keyword):
+    """Every gate event of the Whispers chain fires once the player has the
+    items it checks for (add_item now works)."""
     game = SimulatedGame(WHISPERS, run_story_start=True)
     for action in prefix:
         game.step(action)
     before = _fire_count(game, event_id)
     game.step(keyword)
     assert _fire_count(game, event_id) > before
+
+
+@pytest.mark.parametrize("ending", [
+    "end_story_success_heroic", "end_story_success_cautious",
+])
+def test_whispers_endings_fire_after_full_chain(ending):
+    game = SimulatedGame(WHISPERS, run_story_start=True)
+    for action in ["search desk", "read journal", "search bookshelf",
+                   "go to bluffs", "wait", "wait", "wait", "wait",
+                   "descend into the archway", "use key on the door"]:
+        game.step(action)
+    assert game.flags().get("elian_is_found") is True
+    game.step(ending)
+    assert game.flags().get("game_ended_success") is True
+    assert game.ended() is True
 
 
 # ---------------------------------------------------------------------------
@@ -391,44 +394,51 @@ def test_help_command_keywords(keyword):
     assert "Available commands" in (main.get("override_narrative") or "")
 
 
-@pytest.mark.parametrize("keyword", ["debug", "status", "info"])
+@pytest.mark.parametrize("keyword", ["debug", "status"])
 def test_debug_info_keywords(keyword):
     game = SimulatedGame(WHISPERS, run_story_start=True)
     _, main = game.step(f"check the {keyword}")
     assert any("Debug info" in t for t in main["injected_narratives_post"])
 
 
+def test_first_time_in_location_rearms_per_location():
+    game = SimulatedGame(WHISPERS, run_story_start=True)
+    game.step("search desk")
+    game.step("read journal")  # unlocks knows_about_bluffs
+    game.step("go to bluffs")
+    assert game.location() == "saltstone_bluffs"
+    assert _fire_count(game, "first_time_in_location") == 1
+    game.step("wait")  # turns_in_location -> 1
+    game.step("wait")  # fires again for the new location
+    assert _fire_count(game, "first_time_in_location") == 2
+
+
 @pytest.mark.parametrize("keyword", ["take", "pick up", "grab", "get"])
-def test_inventory_full_warning_keywords_fire_on_empty_inventory(keyword):
-    """CHARACTERIZATION: the event has no inventory-limit condition, so it
-    fires on these keywords even when the inventory is empty."""
-    game = SimulatedGame(WHISPERS, run_story_start=True)
-    assert game.inventory() == []
-    _, main = game.step(f"{keyword} something")
-    assert any("Your hands are full" in t for t in main["injected_narratives_post"])
+def test_inventory_full_warning_only_at_capacity(keyword):
+    """FIXED: the warning needs a full inventory (capacity 2), so it no longer
+    fires on every take/get with room to spare."""
+    roomy = SimulatedGame(WHISPERS, run_story_start=True)
+    _, main = roomy.step(f"{keyword} something")
+    assert main["injected_narratives_post"] == []
+
+    full = SimulatedGame(WHISPERS, run_story_start=True)
+    full.step("search desk")  # journal = 1 item...
+    full.step("read journal")
+    full.step("search bookshelf")  # ...key = 2 items == capacity
+    assert len(full.inventory()) == 2
+    _, main2 = full.step(f"{keyword} something else")
+    assert any("Your hands are full" in t for t in main2["injected_narratives_post"])
 
 
-def test_first_time_in_location_fires_once_then_never_again():
-    game = SimulatedGame(WHISPERS, run_story_start=True)
-    game.step("wait")  # turns_in_location 0 -> 1
-    game.step("wait")  # pre-choice pass at count 1 fires it
-    assert _fire_count(game, "first_time_in_location") == 1
-    game.gsm.set_current_location("saltstone_bluffs")
-    game.gsm.game_state.turns_in_location = 1
-    instructions = []
-    game.em.check_and_trigger_events(game.gsm, "", instructions)
-    assert _fire_count(game, "first_time_in_location") == 1
-
-
-def test_long_time_in_location_fires_repeatedly():
+def test_long_time_in_location_fires_once_per_turn():
     game = SimulatedGame(CLOCKWORK, run_story_start=True)
     for _ in range(6):
         game.step("wait")
-    counts = game.em.fire_counts.get("long_time_in_location", 0)
-    # Fires in both passes of every turn once turns_in_location >= 5.
-    assert counts >= 2
+    # Fires exactly once per turn once turns_in_location >= 5 (the old engine
+    # fired it in both passes, duplicating the injection).
+    assert game.em.fire_counts["long_time_in_location"] == 1
     game.step("wait")
-    assert game.em.fire_counts["long_time_in_location"] > counts
+    assert game.em.fire_counts["long_time_in_location"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -436,23 +446,29 @@ def test_long_time_in_location_fires_repeatedly():
 # ---------------------------------------------------------------------------
 
 
-def _simulate_save(game):
-    """Mirror game.py's save payload (GameState.__dict__ + event state)."""
+def _simulate_save(game, narrative="A narrated scene stands before you."):
+    """Mirror game.py's save payload (GameState + event state + narrative)."""
     return json.loads(json.dumps(
         {
             "game_state": game.gsm.game_state,
             "event_manager_state": game.em.get_state(),
+            "narrative": narrative,
         },
         default=lambda o: o.__dict__,
     ))
 
 
 def _simulate_resume(saved, story_name):
-    """Mirror game.py's resume: only flags/location/counters are restored."""
-    story, player = load_story_and_player(story_name, STORIES_PATH)
+    """Mirror game.py's resume: flags/location/counters/player/narrative."""
+    story, yaml_player = load_story_and_player(story_name, STORIES_PATH)
+    saved_player = saved["game_state"].get("player") or {}
+    player = Player(
+        stats=dict(saved_player.get("stats", yaml_player.stats)),
+        inventory=list(saved_player.get("inventory", yaml_player.inventory)),
+    )
     restored = GameState(
         current_story=story,
-        player=player,  # stats/inventory come from YAML, not the save
+        player=player,
         flags=saved["game_state"]["flags"],
         turn_count=saved["game_state"]["turn_count"],
         current_location=saved["game_state"]["current_location"],
@@ -462,24 +478,35 @@ def _simulate_resume(saved, story_name):
     resumed.state = restored
     resumed.gsm = GameStateManager(restored)
     resumed.em.load_state(saved["event_manager_state"])
-    return resumed
+    return resumed, saved.get("narrative", "Your story continues...")
 
 
-def test_save_resume_restores_progression_but_not_player_changes():
+def test_save_resume_restores_progression_and_player_changes():
     game = SimulatedGame(CLOCKWORK, run_story_start=True)
     game.step("walk in the front door")  # stealth 80 -> 70
     game.step("scout the museum")
     assert game.stats()["stealth"] == 70
     saved = _simulate_save(game)
 
-    resumed = _simulate_resume(saved, CLOCKWORK)
+    resumed, narrative = _simulate_resume(saved, CLOCKWORK)
     assert resumed.location() == game.location()
     assert resumed.gsm.get_turn_count() == game.gsm.get_turn_count()
     assert resumed.flags().keys() >= {"heist_started", "inside_museum",
                                       "entered_boldly"}
-    # CHARACTERIZATION: stats and inventory are re-read from the story arc,
-    # so in-play changes (stealth 70) are lost on resume.
-    assert resumed.stats()["stealth"] == 80
+    # FIXED: stats and inventory now come from the save, not the arc.
+    assert resumed.stats()["stealth"] == 70
+
+
+def test_save_resume_restores_narrative_and_items():
+    game = SimulatedGame(CLOCKWORK, run_story_start=True)
+    game.step("scout the museum")
+    game.step("sneak in")
+    saved = _simulate_save(game, narrative="The service hallway creaks.")
+
+    resumed, narrative = _simulate_resume(saved, CLOCKWORK)
+    assert narrative == "The service hallway creaks."
+    assert "lockpicks" in resumed.inventory()
+    assert "smoke_bomb" in resumed.inventory()
 
 
 def test_once_events_stay_fired_after_resume():
@@ -489,10 +516,25 @@ def test_once_events_stay_fired_after_resume():
     saved = _simulate_save(game)
     assert "scout_museum" in saved["event_manager_state"]["triggered_event_ids"]
 
-    resumed = _simulate_resume(saved, CLOCKWORK)
+    resumed, _ = _simulate_resume(saved, CLOCKWORK)
     before = _fire_count(resumed, "scout_museum")
     resumed.step("scout the museum")
     assert _fire_count(resumed, "scout_museum") == before
+
+
+def test_resume_without_player_key_falls_back_to_arc():
+    """Old saves (written before player persistence) resume with the arc's
+    starting stats/inventory instead of crashing."""
+    game = SimulatedGame(CLOCKWORK, run_story_start=True)
+    game.step("scout the museum")
+    saved = _simulate_save(game)
+    saved["game_state"].pop("player")
+    saved.pop("narrative", None)
+
+    resumed, narrative = _simulate_resume(saved, CLOCKWORK)
+    assert resumed.stats() == {"health": 100, "stealth": 80, "cunning": 70}
+    assert resumed.inventory() == ["lockpicks", "smoke_bomb"]
+    assert narrative == "Your story continues..."
 
 
 # ---------------------------------------------------------------------------

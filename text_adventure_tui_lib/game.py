@@ -170,6 +170,7 @@ def get_player_choice(
     added_choices: list[dict],
     game_state_manager: GameStateManager,
     event_manager: EventManager,
+    narrative: str,
 ) -> str:
     all_choices = choices + [c["label"] for c in added_choices]
 
@@ -181,7 +182,7 @@ def get_player_choice(
         user_input = Prompt.ask("Enter choice number or command").strip().lower()
 
         if user_input.startswith("/"):
-            handle_command(user_input, game_state_manager, event_manager)
+            handle_command(user_input, game_state_manager, event_manager, narrative)
             continue
 
         if user_input.isdigit() and 1 <= int(user_input) <= len(all_choices):
@@ -200,13 +201,16 @@ def get_player_choice(
 
 
 def handle_command(
-    command: str, game_state_manager: GameStateManager, event_manager: EventManager
+    command: str,
+    game_state_manager: GameStateManager,
+    event_manager: EventManager,
+    narrative: str,
 ):
     parts = command.split()
     cmd = parts[0]
 
     if cmd == "/save":
-        save_game_state(game_state_manager, event_manager)
+        save_game_state(game_state_manager, event_manager, narrative)
     elif cmd == "/debug":
         debug_print(f"State: {game_state_manager.game_state}", "info")
     elif cmd == "/force_event" and len(parts) > 1:
@@ -215,7 +219,11 @@ def handle_command(
         raise SystemExit("Exiting game.")
 
 
-def save_game_state(game_state_manager: GameStateManager, event_manager: EventManager):
+def save_game_state(
+    game_state_manager: GameStateManager,
+    event_manager: EventManager,
+    narrative: str,
+):
     SAVE_GAME_PATH.mkdir(exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{game_state_manager.get_story().id}_{timestamp}.json"
@@ -225,6 +233,7 @@ def save_game_state(game_state_manager: GameStateManager, event_manager: EventMa
         save_data = {
             "game_state": game_state_manager.game_state,
             "event_manager_state": event_manager.get_state(),
+            "narrative": narrative,
         }
         json.dump(save_data, f, indent=4, default=lambda o: o.__dict__)
     console.print(f"Game saved as '{filename}'", style="bold green")
@@ -236,7 +245,14 @@ def game_loop(story_name: str, saved_state=None):
 
     if saved_state:
         # Load game from save
-        story, player = load_story_and_player(story_name, stories_path)
+        story, yaml_player = load_story_and_player(story_name, stories_path)
+        # Restore the player (stats/inventory) from the save when available;
+        # fall back to the story arc for saves written by older versions.
+        saved_player = saved_state["game_state"].get("player") or {}
+        player = Player(
+            stats=dict(saved_player.get("stats", yaml_player.stats)),
+            inventory=list(saved_player.get("inventory", yaml_player.inventory)),
+        )
         game_state = GameState(
             current_story=story,
             player=player,
@@ -293,7 +309,7 @@ def game_loop(story_name: str, saved_state=None):
         # --- 3. Get Player's Choice ---
         added_choices = event_results.get("added_choices", [])
         player_choice, event_to_trigger = get_player_choice(
-            choices, added_choices, game_state_manager, event_manager
+            choices, added_choices, game_state_manager, event_manager, narrative
         )
 
         # If the choice triggers a specific event, handle it and restart the loop

@@ -7,6 +7,7 @@ choice labels, so the entire state machine can be simulated deterministically.
 """
 
 from rich.console import Console
+from rich.theme import Theme
 from pathlib import Path
 from collections import deque
 
@@ -46,8 +47,20 @@ class TrackingEventManager(EventManager):
 
 
 def quiet_console() -> Console:
-    """A console that swallows the engine's debug prints."""
-    return Console(quiet=True)
+    """A console that swallows output but accepts game.py's theme styles."""
+    theme = Theme(
+        {
+            "info": "dim cyan",
+            "warning": "magenta",
+            "danger": "bold red",
+            "story": "white",
+            "prompt": "cyan",
+            "choice": "yellow",
+            "debug": "dim blue",
+            "error": "bold red",
+        }
+    )
+    return Console(theme=theme, quiet=True)
 
 
 def normalize_intent(action: str) -> str:

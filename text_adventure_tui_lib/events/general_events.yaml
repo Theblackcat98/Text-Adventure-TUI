@@ -17,6 +17,10 @@
     - type: modify_prompt
       instruction: "The player has very low health and should be presented with options to rest or find healing."
 
+# Inventory capacity. With the default arc inventories, the Whispers story
+# tops out at 2 items (journal + runic key) and The Clockwork Heist at 2
+# (smoke_bomb + temporal_gear after lockpicks are consumed), so trying to pick
+# anything up with a full pack triggers the warning above.
 - id: inventory_full_warning
   name: "Inventory Full"
   trigger:
@@ -24,6 +28,9 @@
     conditions:
       - type: player_action_keyword
         keywords: ["take", "pick up", "grab", "get"]
+      - type: inventory_count
+        operator: ">="
+        value: 2
   actions:
     - type: inject_narrative
       text: "Your hands are full. You'll need to drop something first."
@@ -33,7 +40,7 @@
 - id: first_time_in_location
   name: "Location Description"
   options:
-    once: true
+    once_per_location: true
   trigger:
     mode: AND
     conditions:
@@ -83,8 +90,11 @@
   trigger:
     mode: AND
     conditions:
+      # match: word prevents "status" firing inside "statue", "info" inside
+      # "information", etc. Add multi-word keywords as needed.
       - type: player_action_keyword
-        keywords: ["debug", "status", "info"]
+        match: word
+        keywords: ["debug", "status"]
   actions:
     - type: inject_narrative
       text: "Debug info displayed in console."

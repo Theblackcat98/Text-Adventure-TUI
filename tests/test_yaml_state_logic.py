@@ -146,6 +146,18 @@ def test_duplicate_event_ids_dict_keeps_last():
         (cond(type="inventory_has", value="key"), dict(inventory=[]), False),
         (cond(type="inventory_not_has", value="key"), dict(inventory=[]), True),
         (cond(type="inventory_not_has", value="key"), dict(inventory=["key"]), False),
+        (cond(type="inventory_count", value=2, operator=">="),
+         dict(inventory=["a", "b"]), True),
+        (cond(type="inventory_count", value=3, operator=">="),
+         dict(inventory=["a", "b"]), False),
+        (cond(type="inventory_count", value=2, operator="=="),
+         dict(inventory=["a", "b"]), True),
+        (cond(type="inventory_count", value=2, operator="<="),
+         dict(inventory=["a"]), True),
+        (cond(type="inventory_count", value=1, operator=">"),
+         dict(inventory=["a"]), False),
+        (cond(type="inventory_count", value=3, operator="<"),
+         dict(inventory=["a", "b"]), True),
         (cond(type="game_start"), dict(turn_count=0), True),
         (cond(type="game_start"), dict(turn_count=1), False),
         (
@@ -225,6 +237,19 @@ def test_keyword_condition_is_case_insensitive_substring_match():
     gsm, em = make_engine([event])
     em.check_and_trigger_events(gsm, "I Search Desk thoroughly", [])
     assert gsm.get_flags().get("fired") is True
+
+
+def test_keyword_word_match_mode():
+    event = make_event("e", trigger={"mode": "AND", "conditions": [
+        cond(type="player_action_keyword", match="word",
+             keywords=["status"])]},
+        actions=[{"type": "set_flag", "value": "fired"}])
+    gsm, em = make_engine([event])
+    em.check_and_trigger_events(gsm, "examine the statue", [])
+    assert gsm.get_flags().get("fired") is None
+    gsm2, em2 = make_engine([event])
+    em2.check_and_trigger_events(gsm2, "show the guard my status", [])
+    assert gsm2.get_flags().get("fired") is True
 
 
 def test_keyword_condition_needs_nonempty_input():
@@ -376,13 +401,14 @@ def test_update_stat_missing_stat_starts_from_zero():
     assert gsm.get_stats()["new"] == -7
 
 
-def test_update_stat_non_numeric_raises():
-    """CHARACTERIZATION: non-numeric stats crash with TypeError today."""
+def test_update_stat_non_numeric_falls_back_to_zero():
+    """FIXED: a non-numeric stat no longer crashes the turn with TypeError;
+    the change is applied from a base of 0 instead."""
     gsm, em = make_engine([make_event("e", actions=[
-        {"type": "update_stat", "stat": "mood", "change_by": 1}])],
+        {"type": "update_stat", "stat": "mood", "change_by": 3}])],
         stats={"mood": "happy"})
-    with pytest.raises(TypeError):
-        em.execute_event_actions("e", gsm, [])
+    em.execute_event_actions("e", gsm, [])
+    assert gsm.get_stats()["mood"] == 3
 
 
 def test_change_location_same_location_keeps_turn_counter():
@@ -482,13 +508,24 @@ def test_force_marks_once_event_as_triggered():
     assert gsm.get_flags().get("fired") is None
 
 
-def test_force_bypasses_once_check_and_re_applies_actions():
-    """CHARACTERIZATION: /force_event on a once-event re-runs its actions."""
+def test_force_on_once_event_is_idempotent():
+    """FIXED: /force_event no longer re-applies a once-event's actions."""
     event = make_event("once_ev", options={"once": True}, actions=[
         {"type": "update_stat", "stat": "hp", "change_by": -5}])
     gsm, em = make_engine([event], stats={"hp": 100})
     em.execute_event_actions("once_ev", gsm, [])
     em.execute_event_actions("once_ev", gsm, [])
+    assert gsm.get_stats()["hp"] == 95
+
+
+def test_force_on_repeatable_event_re_applies():
+    """Events without a once/once_per_location guard still re-apply: that is
+    the entire point of the /force_event debugging tool."""
+    event = make_event("repeatable", actions=[
+        {"type": "update_stat", "stat": "hp", "change_by": -5}])
+    gsm, em = make_engine([event], stats={"hp": 100})
+    em.execute_event_actions("repeatable", gsm, [])
+    em.execute_event_actions("repeatable", gsm, [])
     assert gsm.get_stats()["hp"] == 90
 
 
@@ -500,7 +537,8 @@ def test_event_state_roundtrip():
     gsm, em = make_engine([event])
     em.check_and_trigger_events(gsm, "", [])
     saved = em.get_state()
-    assert saved == {"triggered_event_ids": ["once_ev"]}
+    assert saved["triggered_event_ids"] == ["once_ev"]
+    assert saved["fired_event_locations"] == []
 
     gsm2, em2 = make_engine([event])
     em2.load_state(saved)
@@ -513,9 +551,10 @@ def test_event_state_roundtrip():
 # ---------------------------------------------------------------------------
 
 
-def test_first_override_event_breaks_the_pass():
-    """CHARACTERIZATION: an override_narrative stops the event pass, so
-    events later in load order never evaluate that turn."""
+def test_first_override_wins_but_later_events_still_run():
+    """FIXED: an override_narrative no longer breaks the pass, so later
+    events' state changes are never silently dropped. First override in load
+    order takes narrative precedence."""
     first = make_event("first", trigger={"mode": "AND", "conditions": [
         cond(type="location", value="start")]},
         actions=[{"type": "override_narrative", "text": "ONE"},
@@ -527,7 +566,22 @@ def test_first_override_event_breaks_the_pass():
     results = em.check_and_trigger_events(gsm, "", [])
     assert results["override_narrative"] == "ONE"
     assert gsm.get_flags().get("first_ran") is True
-    assert gsm.get_flags().get("second_ran") is None
+    assert gsm.get_flags().get("second_ran") is True
+
+
+def test_second_override_does_not_replace_first():
+    first = make_event("first", trigger={"mode": "AND", "conditions": [
+        cond(type="location", value="start")]},
+        actions=[{"type": "override_narrative", "text": "ONE"},
+                 {"type": "set_flag", "value": "first_ran"}])
+    second = make_event("second", trigger={"mode": "AND", "conditions": [
+        cond(type="location", value="start")]},
+        actions=[{"type": "override_narrative", "text": "TWO"},
+                 {"type": "set_flag", "value": "second_ran"}])
+    gsm, em = make_engine([first, second])
+    results = em.check_and_trigger_events(gsm, "", [])
+    assert results["override_narrative"] == "ONE"
+    assert gsm.get_flags().get("second_ran") is True
 
 
 def test_non_override_events_all_run():
@@ -543,31 +597,36 @@ def test_non_override_events_all_run():
     assert gsm.get_flags().get("second_ran") is True
 
 
-def test_general_help_event_shadows_story_events_same_turn():
-    """CHARACTERIZATION: general events load first, so 'help' in a choice
-    text pre-empts story events that also match (order-dependent behavior)."""
+def test_general_help_event_does_not_block_story_events():
+    """FIXED: 'help' in a choice text no longer swallows matching story
+    events; state advances even though the help text takes narrative
+    precedence (general events load first)."""
     game = SimulatedGame(WHISPERS, run_story_start=True)
     _, results = game.step("help me search desk")
     assert "Available commands" in (results.get("override_narrative") or "")
-    assert game.flags().get("has_journal") is None
-
-    clean = SimulatedGame(WHISPERS, run_story_start=True)
-    _, clean_results = clean.step("search desk")
-    assert clean.flags().get("has_journal") is True
-    assert clean_results.get("override_narrative")
+    assert game.flags().get("has_journal") is True
 
 
-def test_debug_info_substring_catches_word_info():
-    """'info' is a substring of ordinary words like 'information'."""
+def test_debug_info_keywords_use_word_matching():
+    """FIXED: word matching keeps 'info'/'status' from firing inside words
+    like 'information' or 'statue'."""
     game = SimulatedGame(CLOCKWORK, run_story_start=True)
     _, main = game.step("ask the guard for information")
-    post = main["injected_narratives_post"]
-    assert any("Debug info displayed in console." in t for t in post)
+    assert all("Debug info" not in t for t in main["injected_narratives_post"])
+
+    statue = SimulatedGame(CLOCKWORK, run_story_start=True)
+    _, main = statue.step("examine the statue")
+    assert all("Debug info" not in t for t in main["injected_narratives_post"])
+
+    for word in ("debug", "status"):
+        g = SimulatedGame(CLOCKWORK, run_story_start=True)
+        _, main = g.step(f"show me the {word}")
+        assert any("Debug info" in t for t in main["injected_narratives_post"])
 
 
-def test_long_time_in_location_fires_every_pass():
-    """CHARACTERIZATION: it has no `once`, so it re-fires every turn AND in
-    both the pre-choice and choice passes of the same turn."""
+def test_long_time_in_location_fires_once_per_turn():
+    """FIXED: input-independent events used to fire in both the pre-choice
+    and the choice pass of the same turn (duplicate text every turn)."""
     event = make_event("restless",
                        trigger={"mode": "AND", "conditions": [
                            cond(type="turn_count_in_location", value=5,
@@ -577,7 +636,9 @@ def test_long_time_in_location_fires_every_pass():
     game = SimulatedGame(events=[event], turns_in_location=7)
     pre, main = game.step("wait")
     assert pre["injected_narratives_pre"] == ["restless"]
-    assert main["injected_narratives_pre"] == ["restless"]
+    assert main["injected_narratives_pre"] == []
+    pre2, _ = game.step("wait")  # fires again on the next turn
+    assert pre2["injected_narratives_pre"] == ["restless"]
 
 
 # ---------------------------------------------------------------------------
@@ -585,97 +646,101 @@ def test_long_time_in_location_fires_every_pass():
 # ---------------------------------------------------------------------------
 
 
-def test_add_item_ignores_value_key_and_appends_none():
-    """CHARACTERIZATION: `_perform_actions` reads action['item_id'] for
-    add_item, but every shipped event YAML writes add_item with 'value:' —
-    so nothing real is ever added; None is appended instead."""
+def test_add_item_accepts_value_key():
+    """All shipped YAML writes add_item with `value:`; it must add the item."""
     game = SimulatedGame(WHISPERS, run_story_start=True)
     game.step("search desk")
-    assert game.flags().get("has_journal") is True
-    assert game.inventory() == [None]
+    assert game.inventory() == ["elians_journal"]
 
 
-@pytest.mark.xfail(
-    reason="BUG: add_item reads 'item_id' but shipped YAML uses 'value'; "
-           "fix _perform_actions to accept both, then remove this marker",
-    strict=True,
-)
-def test_add_item_with_value_key_adds_the_item_intended():
+def test_add_item_accepts_item_id_key():
     gsm, em = make_engine([make_event("e", actions=[
-        {"type": "add_item", "value": "elians_journal"}])])
+        {"type": "add_item", "item_id": "lamp"}])])
     em.execute_event_actions("e", gsm, [])
-    assert gsm.get_inventory() == ["elians_journal"]
+    assert gsm.get_inventory() == ["lamp"]
 
 
-@pytest.mark.xfail(
-    reason="BUG: add_item key mismatch makes read_journal_clue (inventory_has) "
-           "unreachable in the shipped Whispers story",
-    strict=True,
-)
-def test_whispers_journal_chain_intended():
+def test_add_item_without_item_is_skipped():
+    """A malformed add_item must not corrupt the inventory with None."""
+    gsm, em = make_engine([make_event("e", actions=[{"type": "add_item"}])])
+    em.execute_event_actions("e", gsm, [])
+    assert gsm.get_inventory() == []
+
+
+def test_whispers_journal_chain_completes():
     game = SimulatedGame(WHISPERS, run_story_start=True)
     game.step("search desk")
+    assert "elians_journal" in game.inventory()
     game.step("read journal")
     assert game.flags().get("knows_about_bluffs") is True
-    assert "elians_journal" in game.inventory()
+    game.step("search bookshelf")
+    assert "runic_key" in game.inventory()
+    game.step("go to bluffs")
+    assert game.location() == "saltstone_bluffs"
+    for _ in range(4):  # tide_recedes needs turns_in_location >= 3
+        game.step("wait")
+    assert game.flags().get("tide_is_low") is True
+    game.step("descend into the archway")
+    assert game.location() == "crypt_antechamber"
+    game.step("use key on the door")
+    assert game.flags().get("elian_is_found") is True
+    assert "runic_key" not in game.inventory()
+    game.step("end_story_success_heroic")
+    assert game.flags().get("game_ended_success") is True
 
 
-def test_whispers_chain_is_blocked_today():
-    game = SimulatedGame(WHISPERS, run_story_start=True)
-    game.step("search desk")
-    game.step("read journal")
-    assert game.flags().get("knows_about_bluffs") is None
-
-
-@pytest.mark.xfail(
-    reason="BUG: first_time_in_location has once:true, so it never re-arms "
-           "when the player enters a new location",
-    strict=True,
-)
-def test_first_time_in_location_once_per_location_intended():
+def test_first_time_in_location_fires_once_per_location():
+    """FIXED: `once_per_location: true` re-arms after the player moves, so
+    every new location gets described on arrival."""
     game = SimulatedGame(WHISPERS, run_story_start=True)
     game.gsm.game_state.turns_in_location = 1
     instructions = []
     game.em.check_and_trigger_events(game.gsm, "", instructions)
-    assert instructions  # fired the first time in elian_study
-    # Reach turns_in_location == 1 again in a brand-new location.
+    assert instructions  # fired for elian_study
     game.gsm.set_current_location("saltstone_bluffs")
+    game.gsm.game_state.turn_count = 2  # arriving takes turns
     game.gsm.game_state.turns_in_location = 1
     instructions2 = []
     game.em.check_and_trigger_events(game.gsm, "", instructions2)
-    assert instructions2  # intended: describe the new location too
+    assert instructions2  # fires again for the new location
 
 
-def test_first_time_in_location_is_once_global():
-    """CHARACTERIZATION: after the first firing it never fires again, even in
-    a brand-new location, because options.once marked it permanently."""
+def test_once_per_location_is_deduplicated_within_a_location():
     game = SimulatedGame(WHISPERS, run_story_start=True)
-    game.step("wait")  # turn 1; turns_in_location 0 -> 1
-    game.step("wait")  # pre-choice pass at turns_in_location == 1 fires it
-    assert "first_time_in_location" in game.em.triggered_event_ids
-    game.gsm.set_current_location("crypt_antechamber")  # resets counter
     game.gsm.game_state.turns_in_location = 1
-    results = game.em.check_and_trigger_events(game.gsm, "", [])
-    assert results["injected_narratives_pre"] == []
+    game.em.check_and_trigger_events(game.gsm, "", [])
+    instructions = []
+    game.em.check_and_trigger_events(game.gsm, "", instructions)
+    assert instructions == []
 
 
-@pytest.mark.xfail(
-    reason="BUG: inventory_full_warning has no inventory-limit condition, so "
-           "it injects 'Your hands are full' on any 'take/get' keyword",
-    strict=True,
-)
-def test_inventory_full_warning_only_when_full_intended():
-    game = SimulatedGame(CLOCKWORK, run_story_start=True)
-    pre, main = game.step("take a brochure")
-    assert pre["injected_narratives_post"] == []
+def test_once_per_location_persists_across_save_load():
+    game = SimulatedGame(WHISPERS, run_story_start=True)
+    game.gsm.game_state.turns_in_location = 1
+    game.em.check_and_trigger_events(game.gsm, "", [])
+    state = game.em.get_state()
+    assert ["first_time_in_location", "elian_study"] in state["fired_event_locations"]
+
+    game2 = SimulatedGame(WHISPERS, run_story_start=True)
+    game2.em.load_state(state)
+    game2.gsm.game_state.turns_in_location = 1
+    instructions = []
+    game2.em.check_and_trigger_events(game2.gsm, "", instructions)
+    assert instructions == []
+
+
+def test_inventory_full_warning_only_fires_at_capacity():
+    """FIXED: the warning is gated on inventory_count >= 2, so it no longer
+    injects 'Your hands are full' on any take/get keyword with room to spare."""
+    roomy = SimulatedGame(WHISPERS, run_story_start=True)  # 0 items to start
+    assert roomy.inventory() == []
+    _, main = roomy.step("take a brochure")
     assert main["injected_narratives_post"] == []
 
-
-def test_inventory_full_warning_false_positive_today():
-    game = SimulatedGame(CLOCKWORK, run_story_start=True)
-    _, main = game.step("take a brochure")
-    post = main["injected_narratives_post"]
-    assert any("Your hands are full." in t for t in post)
+    full = SimulatedGame(CLOCKWORK, run_story_start=True)  # 2 items == capacity
+    assert len(full.inventory()) == 2
+    _, main2 = full.step("take a brochure")
+    assert any("Your hands are full" in t for t in main2["injected_narratives_post"])
 
 
 def test_low_health_warning_threshold_unreachable_in_shipped_stories():

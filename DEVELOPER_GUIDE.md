@@ -85,8 +85,8 @@ Defines the core data models:
 - id: unique_event_id
   name: "Human Readable Name"
   options:
-    once: true  # Optional: event only triggers once
-    priority: 1 # Optional: execution priority
+    once: true  # Optional: event only triggers once per playthrough
+    once_per_location: true  # Optional: re-arms when the player travels
   trigger:
     mode: AND   # AND, OR, or MANUAL
     conditions:
@@ -109,11 +109,12 @@ Defines the core data models:
 #### State-Based
 - `flag_set`/`flag_not_set`: Check game flags
 - `inventory_has`/`inventory_not_has`: Check inventory
+- `inventory_count`: How many items the player carries (`==`, `>=`, `<=`, `>`, `<`)
 - `stat_check`: Check player statistics
 - `game_start`: Game initialization trigger
 
 #### Input-Based
-- `player_action_keyword`: Match keywords in input
+- `player_action_keyword`: Match keywords in input (substring by default; `match: word` for whole-word)
 - `player_intent`: Match classified intent
 - `player_action`: Exact action match
 
