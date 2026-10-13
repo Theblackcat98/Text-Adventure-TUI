@@ -1,105 +1,111 @@
 # Architecture Overview
 
-This document provides an overview of the technical architecture of the Terminal Text Adventure game.
+The Terminal Text Adventure is a **hybrid engine**:
+
+- **LLM (Ollama) generates the story** — scene summaries, choices, and action outcomes.
+- **YAML manages all game state** — branching, puzzles, inventory, flags, locations, and pacing.
+
+The YAML layer is the source of truth for what has happened and what is possible; the LLM
+only ever produces prose and choices. It can never change game state directly.
+
+> For the exhaustive deep dive (line-level call traces, load order, known quirks, and
+> verified reachability analysis), see [`docs/architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md).
 
 ## Core Components
 
-1.  **Game Engine (`game.py`)**:
-    *   This is the central script that orchestrates the game.
+1.  **Game Engine (`text_adventure_tui_lib/game.py`)**:
+    *   The single entry point: main menu, turn loop, all LLM calls, slash commands, save writing.
     *   **Responsibilities**:
-        *   Initializing the game environment (console, theme).
-        *   Displaying the game title and story segments.
-        *   Managing the main game loop.
-        *   Loading initial story content from `story_parts/`.
-        *   Interacting with the Ollama LLM for dynamic content generation.
-        *   Handling player input and choices.
-        *   Managing basic error handling and fallbacks.
+        *   Initializing the Ollama client and the Rich console/theme.
+        *   Loading a story via `yaml_loader.load_story_and_player()`.
+        *   Running the per-turn loop: LLM scene description → choice presentation → event evaluation → LLM continuation.
+        *   Handling player input (numbered choices and `/commands`).
+        *   Save/resume, story checkpoints, and game-end handling.
 
-2.  **Ollama LLM Integration**:
-    *   The game leverages an Ollama-hosted Large Language Model (LLM) to generate:
-        *   **Story Continuations**: Based on the current story segment and the player's chosen action.
-        *   **Player Choices**: Based on the current story segment.
-    *   **Connection**: Uses the `ollama` Python library to communicate with a running Ollama instance (default: `http://localhost:11434`).
-    *   **Model**: Configured to use a specific model (default: `phi4:latest`), which can be changed via the `OLLAMA_MODEL` environment variable.
-    *   **Prompting**: Carefully crafted prompts are sent to the LLM to guide its responses for storytelling and choice generation. Debug logs in `game.py` show the exact prompts being used.
+2.  **LLM Integration (Ollama)**:
+    *   Three LLM call sites per turn, all via the `ollama` Python client:
+        *   **Scene + choices** (`get_llm_options`): returns a JSON object with `narrative_summary` and up to 4 `choices`. Falls back to a generic list (`Look around.`, `Check inventory.`, `Wait.`, `Leave.`) if the call or parsing fails.
+        *   **Intent classification** (`get_player_intent`): classifies the chosen action into a keyword (e.g. `search_desk`) used by `player_intent` event triggers.
+        *   **Story continuation** (`get_llm_story_continuation`): narrates the outcome of the chosen action.
+    *   **Connection**: `http://localhost:11434` by default; override with the `OLLAMA_HOST` environment variable.
+    *   **Model**: `phi4:latest` by default; override with the `OLLAMA_MODEL` environment variable.
+    *   Both variables are read at import time (`game.py:36-37`), so they must be set before launching the game.
 
-3.  **Story Content (`story_parts/`)**:
-    *   This directory holds plain text files that serve as starting points or predefined segments of the story.
-    *   `01_intro.txt` is the default initial segment loaded by the game.
-    *   The system is designed to be extensible, allowing for more story files to be added.
+3.  **Event System (`text_adventure_tui_lib/event_manager.py`)** — the YAML interpreter:
+    *   Each turn, every event's `trigger` is evaluated against the current `GameState` (location, flags, inventory, stats, turn counters) plus the player's action/intent.
+    *   Conditions combine with `mode: AND`, `OR` (or `MANUAL`, never auto-fired).
+    *   Executing actions mutates state (flags, inventory, stats, location) and produces narrative effects (`override_narrative`, `inject_narrative`, `modify_prompt`, `add_choice`, `end_game`).
+    *   `options.once: true` events fire at most once per playthrough; the fired set is the only save-relevant event state (`get_state()`/`load_state()`).
 
-4.  **User Interface (Rich Library)**:
-    *   The `rich` Python library is used to create a more engaging and readable terminal interface.
-    *   **Features Used**:
-        *   `Console` for themed output.
-        *   `Panel` for displaying story text and titles.
-        *   `Text` for styled text.
-        *   `Prompt` for handling player input securely.
-        *   Custom themes for consistent styling of information, warnings, story, choices, etc.
+4.  **Game State (`text_adventure_tui_lib/data_structures.py` + `game_state_manager.py`)**:
+    *   `GameState` holds the mutable runtime state: `flags`, `turn_count`, `current_location`, `turns_in_location`, plus references to the `Story` and `Player`.
+    *   `Player` holds `stats` and `inventory`.
+    *   `GameStateManager` is the **only** writer of this state. YAML actions name an action (`set_flag`, `add_item`, `change_location`, ...) and the manager executes exactly one mutation — YAML authors can shape state but never touch objects directly.
+
+5.  **Story Content (YAML + text)**:
+    *   `story_parts/<name>_story_arc.yaml` — the *initial* state: `initial_player_stats`, `initial_inventory`, `starting_location`, plus metadata (checkpoints, tags, difficulty, warnings, author, version). Contains no logic.
+    *   `events/<name>_story_events.yaml` — the story's trigger→action rules. This is where the game logic lives.
+    *   `events/general_events.yaml` — shared events (help command, debug info, low-health warning, location ambiance) loaded for every story.
+    *   `story_parts/<name>_intro.txt` — opening narrative text, referenced by the arc's `initial_story_part`.
 
 ## Game Flow
 
-1.  **Initialization**:
-    *   The game starts, displays the title.
-    *   Loads the initial story segment (e.g., `story_parts/01_intro.txt`).
-
-2.  **Main Loop**:
-    *   **Display Story**: The current story segment is displayed to the player in a panel.
-    *   **Generate Choices**:
-        *   The current story segment is sent to the LLM.
-        *   The LLM generates a list of ~4 actionable choices for the player.
-        *   If the LLM fails, hardcoded fallback choices are used.
-    *   **Get Player Input**:
-        *   The choices are displayed to the player.
-        *   The player enters the number of their chosen action or types `quit`.
-    *   **Process Choice**:
-        *   If `quit`, the game ends.
-        *   Otherwise, the chosen action and the current story segment are sent to the LLM.
-    *   **Generate Story Continuation**:
-        *   The LLM generates the next part of the story based on the player's action.
-        *   If the LLM fails or returns an error, the game may end or display an error message.
-    *   **Update Story**: The newly generated segment becomes the current story segment.
-    *   The loop repeats.
+1.  **Main menu**: discovers stories, offers "Resume Game" (from `~/.text_adventure_tui_saves/`) and a debug toggle.
+2.  **Story load**: `yaml_loader` reads the arc file, then merges `general_events.yaml` + the story's events file (in that order) into one event list, and builds the initial `Player` from the arc's `initial_*` fields.
+3.  **Story start**: the intro text file is loaded, then the `story_start` event (mode `MANUAL`) is executed explicitly — typically setting the opening flag/location and an `override_narrative`.
+4.  **Turn loop** (repeats until an `end_game` action, a `force_end_game` checkpoint, or `/quit`):
+    *   **LLM scene + choices**: the current narrative, location, health, and inventory go to the LLM, which returns a scene summary and up to 4 choices.
+    *   **Pre-choice event pass**: events are evaluated with empty input, so location/turn-count/flavor events (e.g. `first_time_in_location`) can inject narrative or add choices before the player decides.
+    *   **Player choice**: the player picks a number or runs a `/command`. Free text is not parsed as an input — the LLM's generated choice labels are what events match against.
+    *   **Event pass with intent**: the chosen action is classified into an intent, then events are evaluated against it (`player_action_keyword` matches substrings of the choice text, `player_intent` matches the classification). A matching event's `override_narrative` replaces the story beat; otherwise the LLM narrates the outcome.
+    *   **End checks**: the `game_ended*` flags or a `force_end_game` checkpoint at the current turn number end the story (success/failure/message chosen by flag).
+    *   **Advance state**: `turn_count` and `turns_in_location` increment; checkpoint `prompt_injection` for this turn is queued for the next LLM call.
 
 ## Configuration
 
-*   **Ollama Host**: `OLLAMA_HOST` environment variable (defaults to `http://localhost:11434`).
-*   **Ollama Model**: `OLLAMA_MODEL` environment variable (defaults to `phi4:latest`).
-
-## Future Considerations
-
-*   **State Management**: Currently, the game is stateless between sessions. Saving/loading game state would require a persistent storage mechanism.
-*   **Advanced LLM Interaction**: More sophisticated prompt engineering, error recovery, and potentially fine-tuning models could enhance the experience.
-*   **Content Management**: For larger games, a more structured way to manage story arcs, character development, and world-building might be needed beyond simple text files.
+| Setting         | How to change                                        | Default                     |
+| --------------- | ---------------------------------------------------- | --------------------------- |
+| Ollama host     | `OLLAMA_HOST` environment variable (set at launch)   | `http://localhost:11434`    |
+| Ollama model    | `OLLAMA_MODEL` environment variable (set at launch)  | `phi4:latest`               |
+| Debug output    | Main menu → "Toggle Debug Output"                    | OFF                         |
+| Save location   | `~/.text_adventure_tui_saves/<story_id>_<ts>.json`   | `/save` command in-game     |
 
 ## Diagram (Simplified Flow)
 
 ```
-[Start] --> Display Title
-           |
-           v
-[Load Initial Story (01_intro.txt)] --> [current_story_text]
-           |
-           v
-+---------------------------------------+
-| Game Loop:                            |
-|   Display [current_story_text]        |
-|           |                           |
-|           v                           |
-|   [LLM: Generate Choices based on current_story_text] --> [choices_list] |
-|           | (Fallback: hardcoded_choices) |
-|           v                           |
-|   Display [choices_list]              |
-|   Get [player_selected_choice]        |
-|           |                           |
-|           v                           |
-|   IF [player_selected_choice] == "quit" THEN --> [End Game] |
-|           |                           |
-|           v                           |
-|   [LLM: Generate Next Story based on current_story_text + player_selected_choice] --> [new_story_segment] |
-|           | (Fallback: error message/end) |
-|           v                           |
-|   [current_story_text] = [new_story_segment] |
-|   Loop to "Display [current_story_text]" |
-+---------------------------------------+
+[Start] --> Main Menu --select story--> [Load arc + general + story YAML]
+                                          |
+                          [Player(stats, inventory) from arc initial_*]
+                                          |
+                          [intro .txt] + [execute story_start event]
+                                          | (override_narrative)
+                                          v
++-------------------------------------------------------------------------+
+| Turn loop:                                                              |
+|   [LLM #1: scene summary + 4 choices]  (JSON out; fallback list on err)  |
+|        |                                                               |
+|   [pre-choice event pass] -- inject_narrative / add_choice -->          |
+|        |                                                               |
+|   [player picks number / /command] -- choice label + intent              |
+|        |                                                               |
+|   [event pass vs GameState] -- match? -- override_narrative -----+      |
+|        | no match                                              v      |
+|        +--> [LLM #2: story continuation]                      [skip]   |
+|        |                                                               |
+|   [end? game_ended flags / force_end_game checkpoint] -- yes --> [End]  |
+|        | no                                                             |
+|   [turn_count++, turns_in_location++, checkpoint prompt_injection]      |
++-------------------------------------------------------------------------+
 ```
+
+## Document Map
+
+* [`README.md`](../README.md) — user-facing overview, event reference, and in-game commands.
+* [`docs/customization.md`](customization.md) — how to customize the model, story content, and events.
+* [`DEVELOPER_GUIDE.md`](../DEVELOPER_GUIDE.md) — authoring stories and extending the engine.
+* [`docs/architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — exhaustive deep dive with
+  line-referenced call traces, load order, and verified quirks.
+
+Earlier revisions of `docs/architecture.md` and `docs/customization.md` described a single-script,
+LLM-only prototype (a top-level `game.py` with no YAML and no persistence). That design no longer
+exists; those documents have been rewritten to match the current engine.

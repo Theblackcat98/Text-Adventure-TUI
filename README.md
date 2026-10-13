@@ -1,15 +1,19 @@
 # Text Adventure TUI
 
-A terminal-based text adventure game engine powered by LLM (Large Language Model) integration. Create immersive, dynamic stories with event-driven gameplay and natural language interaction.
+A terminal-based text adventure game engine with a hybrid design: the **LLM (Ollama) generates the
+story** — scene summaries, choices, and action outcomes — while **YAML files manage all game
+state** — branching, puzzles, inventory, flags, locations, and pacing. The YAML layer is the source
+of truth for what has happened and what is possible; the LLM only ever writes prose and choices.
 
 ## Features
 
-- **LLM-Powered Storytelling**: Dynamic narrative generation using Ollama
-- **Event-Driven System**: Complex story branching and state management
+- **LLM-Powered Storytelling**: Dynamic narration, choice generation, and intent classification via Ollama
+- **YAML-Driven State Management**: All branching, puzzles, inventory, flags, turns, and locations defined in YAML — the LLM can never change game state directly
+- **Event-Driven System**: Trigger→action rules evaluated against game state every turn
 - **Rich Terminal UI**: Beautiful text formatting with Rich library
-- **Save/Load System**: Persistent game state
+- **Save/Load System**: Persistent game state (resume from the main menu)
 - **Modular Story Structure**: Easy story creation and modification
-- **Natural Language Input**: Players interact using natural language
+- **Choice-Driven Play**: The LLM proposes numbered actions each turn; events match on those choices
 - **Story Discovery**: Automatic detection and validation of stories
 - **Multiple Story Support**: Play different adventures with unique mechanics
 - **Comprehensive Event System**: Full range of triggers and actions
@@ -17,7 +21,7 @@ A terminal-based text adventure game engine powered by LLM (Large Language Model
 ## Installation
 
 1. **Install Ollama**: Follow instructions at [ollama.ai](https://ollama.ai)
-2. **Pull a model**: `ollama pull llama3.1:8b` (or your preferred model)
+2. **Pull a model**: `ollama pull phi4:latest` (or your preferred model; set `OLLAMA_MODEL` to use it)
 3. **Install dependencies**: `pip install -r requirements.txt`
 4. **Run the game**: `python -m text_adventure_tui_lib.game`
 
@@ -140,10 +144,33 @@ Events define the interactive elements of your story:
 
 ## Configuration
 
-Edit `text_adventure_tui_lib/game.py` to configure:
-- Ollama host and model
-- Debug settings
-- UI themes
+| Setting        | How to change                                            | Default                     |
+| -------------- | -------------------------------------------------------- | --------------------------- |
+| Ollama host    | `OLLAMA_HOST` environment variable (read at import time) | `http://localhost:11434`    |
+| Ollama model   | `OLLAMA_MODEL` environment variable (read at import time)| `phi4:latest`               |
+| Debug output   | Main menu → "Toggle Debug Output"                        | OFF                         |
+| Save location  | `~/.text_adventure_tui_saves/<story>_<timestamp>.json`   | `/save` in-game             |
+
+Because the Ollama variables are read when `game.py` imports, they must be set **before**
+launching the game:
+
+```bash
+OLLAMA_MODEL=llama3.1:8b OLLAMA_HOST=http://localhost:11434 python -m text_adventure_tui_lib.game
+```
+
+## How a Turn Works
+
+1. **LLM writes the scene** (`get_llm_options`): current narrative, location, health, and inventory
+   are sent to the LLM, which returns a scene summary plus up to 4 choices (JSON; falls back to a
+   generic list on error).
+2. **Pre-choice event pass**: events are evaluated against game state (location, flags, turn
+   counters), so flavor events like `first_time_in_location` can inject text or add choices.
+3. **Player picks** a number or runs a `/command`.
+4. **Event pass with intent**: the chosen action is classified by the LLM into an intent keyword,
+   then events are evaluated against it. If a matched event has an `override_narrative`, that text
+   *replaces* the story beat and the LLM is skipped; otherwise the LLM narrates the outcome.
+5. **State advances**: `turn_count`/`turns_in_location` increment; checkpoint
+   `prompt_injection` for this turn is queued into the next LLM prompt.
 
 ## Creating New Stories
 
@@ -233,18 +260,26 @@ The `general_events.yaml` file contains reusable events:
 ## Game Commands
 
 ### In-Game Commands
-- `/save`: Save current game state
+
+Type these at the "Choose your action" prompt:
+
+- `/save`: Save current game state (resume later from the main menu)
 - `/debug`: Show debug information
 - `/quit`: Exit the game
-- `/force_event <event_id>`: Trigger specific event (debug)
+- `/force_event <event_id>`: Execute a specific event's actions (debugging YAML)
 
-### Natural Language
-Players can interact naturally:
-- "look around"
-- "take the key"
-- "go north"
-- "examine the door"
-- "use the lockpicks on the chest"
+### Player Actions
+
+Each turn the LLM proposes numbered, actionable choices, for example:
+
+- "Search the desk for clues."
+- "Open Elian's journal."
+- "Head to the cliffs."
+- "Use the salt-stained key."
+
+Players select by number. Events can match these choice labels via `player_action_keyword`
+(substring match) or `player_intent` (LLM classification), so authored event triggers work with
+whatever the LLM happens to word a choice.
 
 ## Contributing
 
@@ -269,6 +304,13 @@ Enable debug mode in the main menu to see:
 - Event trigger details
 - Flag and inventory status
 - Turn counters
+
+## Documentation
+
+* [docs/architecture.md](docs/architecture.md) — engine overview (LLM for story, YAML for state)
+* [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) — deep dive with traced call flows and known quirks
+* [docs/customization.md](docs/customization.md) — customizing model, story content, and events
+* [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) — authoring stories and extending the engine
 
 ## License
 

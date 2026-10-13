@@ -17,10 +17,15 @@
 
 ## Game Engine Architecture
 
-The game engine is event-driven and location-based. The core components are:
+The engine is a **hybrid LLM + YAML design**: the LLM (Ollama) generates the story (scene
+summaries, choices, intent classification, action outcomes), while YAML drives **all game
+state** (flags, inventory, stats, locations, turn counters, branching). The LLM never mutates
+state directly; events are the only mechanism that changes it.
 
-- **`game.py`**: The main game loop, which is driven by the `current_location` flag and the event system.
-- **`event_manager.py`**: Manages game events, including loading event definitions from YAML files, checking trigger conditions, and executing event actions.
-- **`yaml_loader.py`**: Loads all YAML files in a story's directory into a single, flat list of events.
+The engine is event-driven and location-based. The core components are:
+
+- **`game.py`**: The main game loop (menu, turn loop, all LLM calls, save/resume). Driven by the `current_location` value, turn counters, and the event system.
+- **`event_manager.py`**: The YAML interpreter. Evaluates trigger conditions against `GameState` and the player's action/intent, then executes event actions.
+- **`yaml_loader.py`**: Loads a story arc file, then merges `events/general_events.yaml` + `events/<story>_story_events.yaml` (in that order) into a flat event list, and builds the initial `Player` from the arc's `initial_*` fields.
 - **`data_structures.py`**: Defines the core data structures for the game, including `GameState`, `Player`, `Story`, and `Event`.
-- **`game_state_manager.py`**: Manages the game state, including player stats, inventory, flags, and location.
+- **`game_state_manager.py`**: Manages the game state, including player stats, inventory, flags, and location. It is the **only** writer of mutable state.

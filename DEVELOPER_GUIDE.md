@@ -4,12 +4,27 @@ This guide covers the technical aspects of developing and extending the Text Adv
 
 ## Architecture Overview
 
-The Text Adventure TUI engine follows a modular, event-driven architecture:
+The Text Adventure TUI engine is a **hybrid LLM + YAML design**:
+
+*   **The LLM (Ollama) generates the story** — scene summaries, the choices offered each turn,
+    intent classification, and narration of action outcomes.
+*   **YAML manages all state** — every flag, inventory item, stat, location, and turn counter is
+    defined and mutated through YAML-driven events. The LLM never changes game state directly.
+
+The YAML layer is the source of truth; the LLM is a rendering/authoring layer. See
+[docs/architecture.md](docs/architecture.md) for the flow overview and
+[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) for the line-level deep dive.
+
+The engine follows a modular, event-driven architecture:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Game Engine   │    │  Event Manager  │    │  Story Manager  │
 │   (game.py)     │◄──►│(event_manager.py)│    │(story_manager.py)│
+│  hosts the      │    │  interprets all │    │                 │
+│  Ollama LLM     │    │  YAML event     │    │                 │
+│  (story only)   │    │  triggers and   │    │                 │
+│                 │    │  actions        │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          ▼                       ▼                       ▼
@@ -22,11 +37,11 @@ The Text Adventure TUI engine follows a modular, event-driven architecture:
 ## Core Components
 
 ### 1. Game Engine (`game.py`)
-The main game loop that orchestrates all other components:
+The main game loop (module: `text_adventure_tui_lib/game.py`) that orchestrates all other components:
 - Handles player input and choice presentation
-- Manages LLM integration for dynamic storytelling
+- Manages LLM integration for dynamic storytelling (three call sites: scene+choices JSON, intent classification, action continuation)
 - Coordinates event triggering and state updates
-- Manages save/load functionality
+- Manages save/resume functionality
 
 ### 2. Event Manager (`event_manager.py`)
 Handles the event-driven gameplay mechanics:
@@ -139,10 +154,10 @@ Defines the core data models:
 # Create story template
 python story_tool.py create my_story "My Amazing Story" --author "Your Name"
 
-# Edit generated files
-# - story_arc.yaml: Story metadata and structure
-# - story_events.yaml: Interactive events
-# - intro.txt: Opening narrative
+# Edit generated files:
+# - <my_story>_story_arc.yaml: Story metadata and initial state
+# - <my_story>_story_events.yaml: Interactive events
+# - <my_story>_intro.txt: Opening narrative
 
 # Validate story
 python story_tool.py validate my_story
@@ -387,23 +402,54 @@ This tutorial demonstrates the complete process from concept to playable story!
 
 ## LLM Integration
 
+The LLM is a pure authoring/rendering layer: it produces prose and choices, while YAML events
+decide what those words mean. There are three call sites, all in `game.py`:
+
+1.  **`get_llm_options(narrative, game_state_manager)`** — each turn, sends the current narrative
+    plus live state (location, health, inventory) and requires a JSON reply
+    (`{"narrative_summary": ..., "choices": [...]}`, exactly 4 choices). On any error (bad JSON,
+    wrong choice count, Ollama down) it falls back to the current narrative and
+    `["Look around.", "Check inventory.", "Wait.", "Leave."]`.
+2.  **`get_player_intent(player_choice, game_state_manager)`** — classifies the chosen action into
+    a snake_case keyword (e.g. `search_desk`, `read_journal`) at low temperature. This is what
+    `player_intent` event triggers match against. Errors return `"unknown_intent"`.
+3.  **`get_llm_story_continuation(narrative, player_choice, instructions)`** — narrates the
+    outcome of the chosen action. Only called when no event produced an `override_narrative`
+    that turn; on error it returns `"The path forward is hazy..."`.
+
+### Configuration
+
+`OLLAMA_HOST` (default `http://localhost:11434`) and `OLLAMA_MODEL` (default `phi4:latest`)
+are read from the environment at import time (`game.py:36-37`), so they must be set before
+launch.
+
 ### Prompt Engineering
+
 The engine uses several techniques to guide LLM generation:
 
-1. **Context Building**: Current game state, location, and history
-2. **Instruction Injection**: Event-driven prompt modifications
-3. **Choice Generation**: Structured choice presentation
-4. **Narrative Consistency**: Maintaining story coherence
+1.  **Context Building**: current game state, location, and history are injected into the prompt
+2.  **Instruction Injection**: event-driven prompt modifications (`modify_prompt` actions and
+    checkpoint `prompt_injection`), collected per turn and appended to the continuation prompt
+3.  **Choice Generation**: structured JSON choice presentation
+4.  **Narrative Consistency**: key story beats can bypass the LLM entirely via
+    `override_narrative`, guaranteeing authored text is shown verbatim
 
 ### Customizing LLM Behavior
 ```python
-# In event actions
+# In event actions (story or general events YAML)
 - type: modify_prompt
   instruction: "The atmosphere should be tense and foreboding."
 
 # Multiple instructions can be combined
 - type: modify_prompt
   instruction: "Present exactly 3 choices to the player."
+```
+
+```python
+# In the story arc checkpoints (fires when turn_count matches)
+checkpoints:
+  - turn: 10
+    prompt_injection: "Security is tightening. You need to move quickly now."
 ```
 
 ## Testing and Debugging
@@ -420,7 +466,10 @@ pip install -r requirements-dev.txt
 python -m pytest tests/ -v
 
 # Run specific test file
-python tests/test_game_engine.py
+python -m pytest tests/test_game_engine.py
+
+# Run directly with pytest
+pytest tests/test_game_engine.py
 
 # Run tests with coverage
 python -m pytest tests/ --cov=text_adventure_tui_lib --cov-report=html
@@ -432,6 +481,12 @@ The test suite includes:
 - **test_game_basics.py** - Basic functionality tests
 - **test_game_engine.py** - Core engine component tests
 - **test_new_engine.py** - Advanced engine feature tests
+- **test_yaml_state_logic.py** - Every condition type, action type, `once`/`MANUAL`/force semantics, ordering quirks, and scripted playthroughs of the shipped stories — no LLM required
+- **test_yaml_exhaustive_playthrough.py** - Exhaustive BFS exploration of the reachable state space of both shipped stories (every corpus action from every reachable state), reachability/dead-event coverage, keyword-granularity firing tests, save/resume edge cases, and checkpoint logic
+
+### Testing Without an LLM
+
+The engine's test harness (`tests/yaml_sim.py`) drives the real `EventManager`/`GameStateManager` exactly as `game.py` does, minus the LLM calls. This works because the LLM only ever produces prose and choice labels — it never mutates state. Simulated turns supply action text directly, and state coverage is explored breadth-first with deduplication. No Ollama instance or network access is needed for any test.
 
 ### Adding New Tests
 
@@ -487,8 +542,9 @@ python -m text_adventure_tui_lib.game
 # 3. Test all story paths
 # Play through different choices to ensure all events trigger correctly
 
-# 4. Verify save/load functionality
-# Use /save and /load commands during gameplay
+# 4. Verify save/resume functionality
+# Use /save during gameplay, then resume from the main menu's "Resume Game" option
+# (saves live in ~/.text_adventure_tui_saves/)
 ```
 
 ### Common Issues
