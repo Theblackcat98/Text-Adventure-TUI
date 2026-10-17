@@ -1,0 +1,61 @@
+### PROBE 1 (redone) flag_is_set vs flag_set, same conditions otherwise
+  conditions (shipped): [('location', 'elian_study'), ('player_intent', 'search_bookshelf'), ('flag_is_set', 'knows_about_bluffs'), ('flag_not_set', 'has_key')]
+  conditions (fixed)  : [('location', 'elian_study'), ('player_intent', 'search_bookshelf'), ('flag_set', 'knows_about_bluffs'), ('flag_not_set', 'has_key')]
+  shipped trigger, input='Search the bookshelf.', intent='search_bookshelf' -> False
+  fixed   trigger, same input                                        -> True
+  isolated flag_is_set(knows_about_bluffs) with flag True -> False
+  isolated flag_set(knows_about_bluffs)    with flag True -> True
+
+### exact line numbers of every flag_is_set in the repo
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter1_study.yaml:67:      - type: flag_is_set
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter2_coast.yaml:10:      - type: flag_is_set
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter3_crypt.yaml:12:      - type: flag_is_set
+
+### exact line numbers of every add_item / inventory_has / remove_item in shipped YAML
+-- whispers_of_the_salted_crypt_story_events.yaml
+34:      - type: player_action_keyword
+41:    - type: add_item
+58:      - type: player_action_keyword
+60:      - type: inventory_has
+86:      - type: player_action_keyword
+95:    - type: add_item
+114:      - type: player_action_keyword
+167:      - type: player_action_keyword
+192:      - type: player_action_keyword
+194:      - type: inventory_has
+197:    - type: remove_item
+211:    - type: present_choices
+227:      - type: player_action
+242:    - type: end_game
+252:      - type: player_action
+268:    - type: end_game
+
+-- the_clockwork_heist_story_events.yaml
+32:      - type: player_action_keyword
+56:      - type: player_action_keyword
+85:      - type: player_action_keyword
+96:    - type: update_stat
+119:      - type: player_action_keyword
+147:      - type: player_action_keyword
+149:      - type: inventory_has
+156:    - type: remove_item
+177:      - type: player_action_keyword
+186:    - type: add_item
+209:      - type: player_action_keyword
+211:      - type: inventory_has
+214:    - type: remove_item
+226:    - type: end_game
+240:      - type: player_action_keyword
+253:    - type: end_game
+265:      - type: player_action_keyword
+272:    - type: update_stat
+282:    - type: end_game
+
+-- general_events.yaml
+25:      - type: player_action_keyword
+67:      - type: player_action_keyword
+86:      - type: player_action_keyword
+
+### all condition types + all action types used anywhere in the YAML
+  condition types: {'stat_check': 1, 'player_action_keyword': 18, 'turn_count_in_location': 4, 'game_start': 3, 'location': 13, 'flag_not_set': 15, 'flag_set': 10, 'inventory_has': 6, 'player_action': 5, 'player_intent': 3, 'flag_is_set': 3}
+  action types   : {'inject_narrative': 4, 'modify_prompt': 20, 'override_narrative': 29, 'set_flag': 26, 'change_location': 10, 'update_stat': 2, 'remove_item': 4, 'add_item': 5, 'end_game': 5, 'present_choices': 2, 'add_choice': 1}

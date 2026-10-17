@@ -1,0 +1,91 @@
+# General game events that can be used across multiple stories
+
+# Health and status events
+- id: low_health_warning
+  name: "Low Health Warning"
+  trigger:
+    mode: AND
+    conditions:
+      - type: stat_check
+        stat: "health"
+        operator: "<="
+        value: 25
+  actions:
+    - type: inject_narrative
+      text: "You feel weak and injured. Your health is dangerously low."
+      position: "pre"
+    - type: modify_prompt
+      instruction: "The player has very low health and should be presented with options to rest or find healing."
+
+- id: inventory_full_warning
+  name: "Inventory Full"
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["take", "pick up", "grab", "get"]
+  actions:
+    - type: inject_narrative
+      text: "Your hands are full. You'll need to drop something first."
+      position: "post"
+
+# Location-based ambiance events
+- id: first_time_in_location
+  name: "Location Description"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: turn_count_in_location
+        value: 1
+        operator: "=="
+  actions:
+    - type: modify_prompt
+      instruction: "This is the player's first time in this location. Provide a detailed description of the environment and atmosphere."
+
+# Time-based events
+- id: long_time_in_location
+  name: "Restlessness"
+  trigger:
+    mode: AND
+    conditions:
+      - type: turn_count_in_location
+        value: 5
+        operator: ">="
+  actions:
+    - type: inject_narrative
+      text: "You've been here for a while. Perhaps it's time to move on or try something different."
+      position: "pre"
+
+# Help and tutorial events
+- id: help_command
+  name: "Help System"
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["help", "?", "commands", "what can i do"]
+  actions:
+    - type: override_narrative
+      text: |
+        Available commands:
+        • Type your actions naturally (e.g., "look around", "take the key")
+        • /save - Save your current game
+        • /debug - Show debug information
+        • /quit - Exit the game
+        
+        The game responds to natural language, so describe what you want to do!
+
+# Debug and development events
+- id: debug_info
+  name: "Debug Information"
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["debug", "status", "info"]
+  actions:
+    - type: inject_narrative
+      text: "Debug info displayed in console."
+      position: "post"

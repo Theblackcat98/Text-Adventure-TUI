@@ -1,0 +1,269 @@
+# Story initialization event
+- id: story_start
+  name: "The Missing Mentor"
+  trigger:
+    mode: MANUAL
+    conditions:
+      - type: game_start
+  actions:
+    - type: set_flag
+      value: "knows_elian_is_missing"
+    - type: change_location
+      value: "elian_study"
+    - type: override_narrative
+      text: |
+        The scent of old paper and dust hangs heavy in the air of your mentor's study.
+        Master Elian has been missing for three days. The city guard considers him another
+        eccentric old man who simply wandered off, but you know better. His obsession
+        was the Salted Crypt, a place of myth that he swore was real. His desk is a
+        clutter of maps, books, and unfinished notes. You came here to find a clue,
+        any clue, as to where he might have gone.
+    - type: modify_prompt
+      instruction: "The player is in Master Elian's study. The goal is to find where he went. The most important objects in the room are the cluttered desk, a tall bookshelf filled with lore books, and a large map of the coastline pinned to the wall. Guide the player to investigate these things."
+
+# Chapter 1: The Study - Finding clues
+- id: find_elians_journal
+  name: "Discovering Elian's Journal"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "elian_study"
+      - type: player_action_keyword
+        keywords: ["search desk", "examine desk", "look at desk", "investigate desk"]
+      - type: flag_not_set
+        value: "has_journal"
+  actions:
+    - type: set_flag
+      value: "has_journal"
+    - type: add_item
+      value: "elians_journal"
+    - type: override_narrative
+      text: |
+        You carefully sort through the mess on the desk. Beneath a stack of star charts,
+        you find what you were looking for: his personal journal. The leather is cool
+        to the touch, and a place is marked with a silken ribbon.
+    - type: modify_prompt
+      instruction: "The player has just found Elian's journal. They will likely want to read it next."
+
+- id: read_journal_clue
+  name: "Reading the Critical Journal Entry"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["read journal", "open journal", "examine journal", "look at journal"]
+      - type: inventory_has
+        value: "elians_journal"
+      - type: flag_not_set
+        value: "knows_about_bluffs"
+  actions:
+    - type: set_flag
+      value: "knows_about_bluffs"
+    - type: override_narrative
+      text: |
+        You open the journal to the marked page. Elian's handwriting is frantic.
+        'I've found it! The maps were all wrong. It's not in the caves, it's *below*
+        them. The entrance is only revealed when the tide is at its lowest. I must see
+        it for myself. I will travel to the Saltstone Bluffs at once. The key... the
+        key must be the one from the Tycendi ruin.'
+    - type: modify_prompt
+      instruction: "The player now knows about the Saltstone Bluffs and that Elian went there. They should look for the key he mentioned."
+
+- id: find_hidden_key
+  name: "Finding the Runic Key"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "elian_study"
+      - type: player_action_keyword
+        keywords: ["search bookshelf", "examine bookshelf", "look at bookshelf", "investigate books"]
+      - type: flag_set
+        value: "knows_about_bluffs"
+      - type: flag_not_set
+        value: "has_key"
+  actions:
+    - type: set_flag
+      value: "has_key"
+    - type: add_item
+      value: "runic_key"
+    - type: override_narrative
+      text: |
+        Remembering the journal's mention of a key, you run your hands along the spines
+        of the old books on the shelf. One of them, 'A History of Tycendi Ruins', feels
+        oddly light. You pull it out and discover it has been hollowed out. Nestled inside
+        on a bed of velvet is a heavy, pitted bronze key. It hums with a faint energy.
+    - type: modify_prompt
+      instruction: "The player now has the key. They should travel to the Saltstone Bluffs to find Elian."
+
+# Chapter 2: The Coast - Journey to the bluffs
+- id: arrive_at_bluffs
+  name: "Arrival at Saltstone Bluffs"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["go to bluffs", "travel to bluffs", "visit bluffs", "saltstone bluffs", "leave study"]
+      - type: flag_set
+        value: "knows_about_bluffs"
+  actions:
+    - type: change_location
+      value: "saltstone_bluffs"
+    - type: override_narrative
+      text: |
+        You arrive at the Saltstone Bluffs. A fierce wind whips salt spray into your face.
+        Below, powerful waves crash against the cliff face, churning the sea into a white
+        foam. The tide is high, and there is no obvious entrance anywhere. It seems you'll
+        have to wait.
+    - type: modify_prompt
+      instruction: "The player is at the Saltstone Bluffs. The key plot point is that the tide is too high. The player must wait. Let them explore the area, but remind them about the crashing waves. After a few turns, the 'tide_recedes' event will trigger."
+
+- id: tide_recedes
+  name: "The Tide Recedes"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "saltstone_bluffs"
+      - type: turn_count_in_location
+        value: 3
+        operator: ">="
+      - type: flag_not_set
+        value: "tide_is_low"
+  actions:
+    - type: set_flag
+      value: "tide_is_low"
+    - type: override_narrative
+      text: |
+        You spend some time exploring the clifftop. As the sun begins to dip towards the
+        horizon, you notice the waves below have grown calmer. The water has receded,
+        exposing a wide, wet shelf of dark rock at the base of the bluff. And there,
+        carved into the cliff face, is a seaweed-draped archway that was completely
+        submerged before.
+    - type: modify_prompt
+      instruction: "The tide is now low, revealing the entrance to the Salted Crypt. The player's next logical step is to descend the cliff and enter the archway."
+
+# Chapter 3: The Crypt - Final confrontation
+- id: enter_the_crypt
+  name: "Entering the Crypt"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "saltstone_bluffs"
+      - type: player_action_keyword
+        keywords: ["enter archway", "go through archway", "enter crypt", "descend", "climb down"]
+      - type: flag_set
+        value: "tide_is_low"
+  actions:
+    - type: change_location
+      value: "crypt_antechamber"
+    - type: override_narrative
+      text: |
+        You carefully make your way down the slick rocks and step through the ancient archway.
+        The air immediately becomes still and heavy with the smell of salt and decay.
+        You are in a small antechamber, and before you stands a massive, circular stone
+        door sealed with intricate bronze bands. A single, rune-etched keyhole sits in its center.
+    - type: modify_prompt
+      instruction: "The player is now in the crypt antechamber. They need to use the runic key to open the door and find Elian."
+
+- id: rescue_elian
+  name: "Finding Master Elian"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "crypt_antechamber"
+      - type: player_action_keyword
+        keywords: ["use key", "insert key", "unlock door", "open door"]
+      - type: inventory_has
+        value: "runic_key"
+  actions:
+    - type: remove_item
+      value: "runic_key"
+    - type: set_flag
+      value: "elian_is_found"
+    - type: override_narrative
+      text: |
+        You insert the Tycendi Runic Key into the lock. The runes on the key and the door
+        flare with a bright blue light. With a deep groan of grinding stone, the massive
+        door slides open.
+
+        The chamber beyond is vast. Piles of gold and ancient artifacts lie in dusty heaps,
+        but your attention is drawn to the center of the room. There, tied to a stone
+        altar, is Master Elian! He is alive, though he looks weak. "By the archives!" he rasps, his eyes
+        widening in disbelief. "You found me!"
+    - type: present_choices
+      text: "What do you do?"
+      choices:
+        - label: "Rush forward and untie him immediately."
+          action: "end_story_success_heroic"
+        - label: "Ask him what happened before you get any closer."
+          action: "end_story_success_cautious"
+
+# Ending events
+- id: end_story_success_heroic
+  name: "Heroic Rescue"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action
+        value: "end_story_success_heroic"
+  actions:
+    - type: set_flag
+      value: "heroic_ending"
+    - type: override_narrative
+      text: |
+        Without hesitation, you rush to Elian's side and quickly untie his bonds. He staggers
+        to his feet, grateful but shaken. "Thank you," he whispers. "I was a fool to come
+        here alone. The guardians of this place... they're not entirely gone." 
+        
+        Together, you help him gather some of the most valuable artifacts before making
+        your escape. As you emerge from the crypt, the tide is already beginning to rise
+        again. You've saved your mentor and uncovered treasures that will fund many future
+        adventures. Well done!
+    - type: end_game
+      success: true
+
+- id: end_story_success_cautious
+  name: "Cautious Rescue"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action
+        value: "end_story_success_cautious"
+  actions:
+    - type: set_flag
+      value: "cautious_ending"
+    - type: override_narrative
+      text: |
+        "What happened here?" you ask, staying alert as you approach. Elian's eyes dart
+        around the chamber nervously. "The crypt's guardians... spectral beings that
+        protect this place. They captured me when I tried to take too much. Be careful!"
+        
+        Heeding his warning, you carefully untie him while keeping watch. Together, you
+        take only what you need and make a strategic retreat. Your caution pays off as
+        you notice shadowy figures stirring in the deeper chambers. You've saved your
+        mentor and learned valuable lessons about respecting ancient places. Wisdom
+        and courage have served you well!
+    - type: end_game
+      success: true

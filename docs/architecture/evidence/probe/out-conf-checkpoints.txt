@@ -1,0 +1,45 @@
+### A. end_game overwrites override_narrative (event_manager.py:148-154)
+  whispers_of_the_salted_crypt_story_events.yaml:end_story_success_heroic  end_game keys=['success', 'type']  prose_before_end_game=True (508 chars) -> override_narrative becomes event_manager.py:151 default
+  whispers_of_the_salted_crypt_story_events.yaml:end_story_success_cautious  end_game keys=['success', 'type']  prose_before_end_game=True (586 chars) -> override_narrative becomes event_manager.py:151 default
+  the_clockwork_heist_story_events.yaml:escape_with_smoke_bomb  end_game keys=['success', 'type']  prose_before_end_game=True (364 chars) -> override_narrative becomes event_manager.py:151 default
+  the_clockwork_heist_story_events.yaml:escape_stealth_route  end_game keys=['success', 'type']  prose_before_end_game=True (371 chars) -> override_narrative becomes event_manager.py:151 default
+  the_clockwork_heist_story_events.yaml:desperate_escape  end_game keys=['success', 'type']  prose_before_end_game=True (338 chars) -> override_narrative becomes event_manager.py:151 default
+
+### B. checkpoint turn numbers vs total_turns_estimate
+  whispers_of_the_salted_crypt: total_turns_estimate=25
+     turn= 15 force_end_game=False flag_messages=[]
+     turn= 25 force_end_game=True flag_messages=['elian_is_found']
+     initial_inventory=[]  initial_stats={'health': 100, 'sanity': 100, 'knowledge': 10}
+  the_clockwork_heist: total_turns_estimate=15
+     turn= 10 force_end_game=False flag_messages=[]
+     turn= 15 force_end_game=True flag_messages=['has_temporal_gear']
+     initial_inventory=['lockpicks', 'smoke_bomb']  initial_stats={'health': 100, 'stealth': 80, 'cunning': 70}
+
+### C. is the flag_messages flag ever set?  grep the matching events file
+  elian_is_found: 200:      value: "elian_is_found"
+      arc references it at: 27:      - flag: "elian_is_found"
+  has_temporal_gear: 182:        value: "has_temporal_gear"
+185:      value: "has_temporal_gear"
+208:        value: "has_temporal_gear"
+237:        value: "has_temporal_gear"
+264:        value: "has_temporal_gear"
+      arc references it at: 27:      - flag: "has_temporal_gear"
+
+### D. simulate the turn counter exactly as game.py:276-377 runs it
+  whispers_of_the_salted_crypt: turn 25 force_end_game, flags={}
+      end_message = Despite your best efforts, you were unable to locate Master Elian. The Salted Crypt keeps ...
+  whispers_of_the_salted_crypt: checkpoints fired [(15, 'prompt_injection'), (25, 'prompt_injection')], forced end at turn 25
+  the_clockwork_heist: turn 15 force_end_game, flags={}
+      end_message = The heist has gone wrong. Alarms blare as you flee empty-handed into the night. Perhaps ne...
+  the_clockwork_heist: checkpoints fired [(10, 'prompt_injection'), (15, 'prompt_injection')], forced end at turn 15
+
+### E. checkpoint exact-equality: does a checkpoint at turn 15 survive turn 15?
+  turn_count=  9 -> checkpoints matched: []
+  turn_count= 10 -> checkpoints matched: [10]
+  turn_count= 11 -> checkpoints matched: []
+  turn_count= 14 -> checkpoints matched: []
+  turn_count= 15 -> checkpoints matched: [15]
+  turn_count= 16 -> checkpoints matched: []
+
+### F. what if the story reaches its ending event first? (game.py:334-344 beats 352)
+  after end_game: game_ended = True -> game.py:334 breaks the loop; the turn-25 checkpoint at game.py:352 never runs

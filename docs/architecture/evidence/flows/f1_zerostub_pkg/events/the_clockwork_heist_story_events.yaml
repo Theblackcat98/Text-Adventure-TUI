@@ -1,0 +1,283 @@
+# Story initialization event
+- id: story_start
+  name: "The Heist Begins"
+  trigger:
+    mode: MANUAL
+    conditions:
+      - type: game_start
+  actions:
+    - type: set_flag
+      value: "heist_started"
+    - type: change_location
+      value: "thieves_den"
+    - type: override_narrative
+      text: |
+        You gather your tools and check your equipment one final time. The lockpicks
+        gleam in the lamplight, and the smoke bomb feels reassuringly solid in your
+        pocket. Everything is ready. The Clockwork Museum awaits, and with it, the
+        greatest heist of your career.
+    - type: modify_prompt
+      instruction: "The player is a master thief preparing for a heist. They should choose how to approach the museum - stealthily, boldly, or with careful planning. Present options that reflect different thieving approaches."
+
+# Chapter 1: Approaching the Museum
+- id: scout_museum
+  name: "Scouting the Target"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "thieves_den"
+      - type: player_action_keyword
+        keywords: ["scout", "observe", "watch", "study museum", "case the joint"]
+      - type: flag_not_set
+        value: "museum_scouted"
+  actions:
+    - type: set_flag
+      value: "museum_scouted"
+    - type: override_narrative
+      text: |
+        You spend time observing the museum from the shadows. The building is an
+        impressive sight - all brass fittings and clockwork decorations that tick
+        and whir in complex patterns. You note the guard rotations, the placement
+        of the mechanical sentries, and most importantly, a service entrance that
+        seems less heavily watched.
+    - type: modify_prompt
+      instruction: "The player has scouted the museum and learned about its defenses. They now know about a service entrance. Present them with options to either use this entrance or find another way in."
+
+- id: enter_museum_stealth
+  name: "Stealthy Entry"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["sneak in", "service entrance", "stealth", "quietly", "slip in"]
+      - type: flag_set
+        value: "museum_scouted"
+      - type: flag_not_set
+        value: "inside_museum"
+  actions:
+    - type: set_flag
+      value: "inside_museum"
+    - type: set_flag
+      value: "entered_stealthily"
+    - type: change_location
+      value: "museum_service_hall"
+    - type: override_narrative
+      text: |
+        You slip through the service entrance like a shadow. The hallway beyond is
+        dimly lit by brass gas lamps that cast dancing shadows on the walls. You
+        can hear the distant ticking of countless clockwork mechanisms. So far,
+        so good - no alarms, no guards. Your stealth skills have served you well.
+    - type: modify_prompt
+      instruction: "The player has successfully entered the museum stealthily. They are in a service hallway. They need to find their way to the main exhibition halls where the Temporal Gear is kept."
+
+- id: enter_museum_bold
+  name: "Bold Entry"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action_keyword
+        keywords: ["front door", "bold", "direct", "main entrance", "walk in"]
+      - type: flag_not_set
+        value: "inside_museum"
+  actions:
+    - type: set_flag
+      value: "inside_museum"
+    - type: set_flag
+      value: "entered_boldly"
+    - type: change_location
+      value: "museum_main_hall"
+    - type: update_stat
+      stat: "stealth"
+      change_by: -10
+    - type: override_narrative
+      text: |
+        You stride confidently through the main entrance, nodding to the night
+        guard as if you belong there. Your bold approach catches them off guard,
+        and you're inside before they can react properly. However, you notice
+        several mechanical sentries have taken note of your presence. This
+        approach may have consequences later.
+    - type: modify_prompt
+      instruction: "The player entered boldly and is now in the main hall, but the mechanical sentries are suspicious. They need to find the Temporal Gear quickly before security responds."
+
+# Chapter 2: Inside the Museum
+- id: find_temporal_gear_hall
+  name: "Locating the Temporal Gear"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "inside_museum"
+      - type: player_action_keyword
+        keywords: ["find gear", "temporal gear", "search", "look for", "locate"]
+      - type: flag_not_set
+        value: "found_gear_location"
+  actions:
+    - type: set_flag
+      value: "found_gear_location"
+    - type: change_location
+      value: "chronos_exhibition_hall"
+    - type: override_narrative
+      text: |
+        Following the museum's directory and your instincts, you make your way to
+        the Chronos Exhibition Hall. The room is filled with incredible timepieces
+        and temporal artifacts, but your eyes are drawn immediately to the center
+        display case. There it is - the Temporal Gear, suspended in a field of
+        soft blue light, slowly rotating as if time itself flows around it.
+    - type: modify_prompt
+      instruction: "The player has found the Temporal Gear in its display case. The case is clearly protected by advanced security. They need to figure out how to bypass the protection and steal the gear."
+
+- id: disable_security_lockpicks
+  name: "Bypassing Security with Lockpicks"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "chronos_exhibition_hall"
+      - type: player_action_keyword
+        keywords: ["use lockpicks", "pick lock", "disable security", "bypass"]
+      - type: inventory_has
+        value: "lockpicks"
+      - type: flag_not_set
+        value: "security_disabled"
+  actions:
+    - type: set_flag
+      value: "security_disabled"
+    - type: remove_item
+      value: "lockpicks"
+    - type: override_narrative
+      text: |
+        You carefully examine the display case's locking mechanism. It's incredibly
+        complex - a masterwork of clockwork engineering with multiple tumblers that
+        shift in sequence. Using your finest lockpicks, you work with delicate
+        precision. After several tense minutes, you hear the satisfying click of
+        the final tumbler falling into place. The blue energy field flickers and dies.
+    - type: modify_prompt
+      instruction: "The player has successfully disabled the security on the display case. The Temporal Gear is now accessible. They should take it, but they need to be prepared for what happens next."
+
+- id: steal_temporal_gear
+  name: "The Temporal Gear is Yours"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "chronos_exhibition_hall"
+      - type: player_action_keyword
+        keywords: ["take gear", "steal gear", "grab", "temporal gear"]
+      - type: flag_set
+        value: "security_disabled"
+      - type: flag_not_set
+        value: "has_temporal_gear"
+  actions:
+    - type: set_flag
+      value: "has_temporal_gear"
+    - type: add_item
+      value: "temporal_gear"
+    - type: override_narrative
+      text: |
+        You reach into the display case and carefully lift the Temporal Gear. The
+        moment your fingers touch it, you feel a strange sensation - as if time
+        itself is flowing through your hands. The gear is warm and seems to pulse
+        with an inner rhythm. But your triumph is short-lived. Alarms begin to
+        blare throughout the museum, and you hear the mechanical whirring of
+        security sentries activating. Time to go!
+    - type: modify_prompt
+      instruction: "The player has the Temporal Gear but alarms are sounding. They need to escape quickly. Present them with escape options - they might use their smoke bomb, try to sneak out, or make a bold dash for freedom."
+
+# Chapter 3: The Escape
+- id: escape_with_smoke_bomb
+  name: "Smoke Bomb Escape"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "has_temporal_gear"
+      - type: player_action_keyword
+        keywords: ["smoke bomb", "use smoke", "throw smoke", "smoke"]
+      - type: inventory_has
+        value: "smoke_bomb"
+  actions:
+    - type: remove_item
+      value: "smoke_bomb"
+    - type: set_flag
+      value: "escaped_successfully"
+    - type: override_narrative
+      text: |
+        You pull out your smoke bomb and hurl it to the ground. Thick, choking
+        smoke fills the exhibition hall, confusing the mechanical sentries and
+        obscuring their sensors. Using the chaos to your advantage, you slip
+        through the confusion and make your way to the exit. The smoke clears
+        just as you disappear into the night, the Temporal Gear safely in your
+        possession.
+    - type: end_game
+      success: true
+
+- id: escape_stealth_route
+  name: "Stealthy Escape"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "has_temporal_gear"
+      - type: flag_set
+        value: "entered_stealthily"
+      - type: player_action_keyword
+        keywords: ["sneak out", "stealth", "quietly", "service entrance"]
+  actions:
+    - type: set_flag
+      value: "escaped_successfully"
+    - type: override_narrative
+      text: |
+        Remembering your stealthy entry route, you retrace your steps through the
+        service corridors. Your knowledge of the museum's layout serves you well
+        as you avoid the main security response. The mechanical sentries are
+        focused on the exhibition halls, leaving your escape route clear. You
+        slip out the same way you came in, the perfect crime completed with
+        perfect stealth.
+    - type: end_game
+      success: true
+
+- id: desperate_escape
+  name: "Desperate Flight"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: flag_set
+        value: "has_temporal_gear"
+      - type: player_action_keyword
+        keywords: ["run", "dash", "flee", "escape quickly"]
+      - type: flag_not_set
+        value: "escaped_successfully"
+  actions:
+    - type: set_flag
+      value: "barely_escaped"
+    - type: update_stat
+      stat: "health"
+      change_by: -20
+    - type: override_narrative
+      text: |
+        With no other options, you make a desperate dash for the exit. Mechanical
+        sentries give chase, their brass limbs clanking as they pursue you through
+        the halls. You barely make it out, suffering a few scrapes and bruises
+        from their grasping claws, but the Temporal Gear is yours. It wasn't
+        elegant, but sometimes a thief has to improvise.
+    - type: end_game
+      success: true

@@ -1,0 +1,50 @@
+- id: arrive_at_bluffs
+  name: "Arrival at Saltstone Bluffs"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: player_action
+        value: "go_to_bluffs" # Changed from 'intent' to 'value'
+      - type: flag_is_set
+        value: "knows_about_bluffs"
+  actions:
+    - type: change_location
+      value: "saltstone_bluffs"
+    - type: override_narrative
+      text: |
+        You arrive at the Saltstone Bluffs. A fierce wind whips salt spray into your face.
+        Below, powerful waves crash against the cliff face, churning the sea into a white
+        foam. The tide is high, and there is no obvious entrance anywhere. It seems you'll
+        have to wait.
+    - type: modify_prompt
+      instruction: "The player is at the Saltstone Bluffs. The key plot point is that the tide is too high. The player must wait. Let them explore the area, but remind them about the crashing waves. After a few turns, the 'tide_recedes' event will trigger."
+
+- id: tide_recedes
+  name: "The Tide Recedes"
+  options:
+    once: true
+  trigger:
+    mode: AND
+    conditions:
+      - type: location
+        value: "saltstone_bluffs"
+      - type: turn_count_in_location
+        location: "saltstone_bluffs"
+        value: 3
+        operator: ">="
+      - type: flag_not_set
+        value: "tide_is_low"
+  actions:
+    - type: set_flag
+      value: "tide_is_low"
+    - type: override_narrative
+      text: |
+        You spend some time exploring the clifftop. As the sun begins to dip towards the
+        horizon, you notice the waves below have grown calmer. The water has receded,
+        exposing a wide, wet shelf of dark rock at the base of the bluff. And there,
+        carved into the cliff face, is a seaweed-draped archway that was completely
+        submerged before.
+    - type: modify_prompt
+      instruction: "The tide is now low, revealing the entrance to the Salted Crypt. The player's next logical step is to descend the cliff and enter the archway."

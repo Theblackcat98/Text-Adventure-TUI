@@ -1,0 +1,41 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                           Terminal Text Adventure                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Available Stories:
+1. The Clockwork Heist by Text Adventure TUI Team
+   Medium • ~15 turns
+   Tags: heist, stealth, urban, crime, fantasy
+   You're a master thief planning the heist of a lifetime. The Clockwork Museum 
+houses
+the legendary Te...
+
+2. Whispers of the Salted Crypt by Text Adventure TUI Team
+   Beginner • ~25 turns
+   Tags: mystery, adventure, coastal, rescue, mentor
+   Your mentor Master Elian has vanished without a trace. His obsession with the
+legendary
+Salted Crypt...
+
+3. Resume Game
+4. Toggle Debug Output (OFF)
+5. Quit
+Choose an option: Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/game.py", line 466, in <module>
+    main_menu()
+    ~~~~~~~~~^^
+  File "/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/game.py", line 424, in main_menu
+    choice = Prompt.ask("Choose an option").strip()
+             ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/prompt.py", line 149, in ask
+    return _prompt(default=default, stream=stream)
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/prompt.py", line 292, in __call__
+    value = self.get_input(self.console, prompt, self.password, stream=stream)
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/prompt.py", line 211, in get_input
+    return console.input(prompt, password=password, stream=stream)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/console.py", line 2170, in input
+    result = input()
+EOFError: EOF when reading a line
+exit=1

@@ -1,0 +1,29 @@
+### rescue_elian at the crypt with runic_key present (EventManager level)
+  triggered: True
+  flags: ['elian_is_found']
+  override (would replace narrative): True
+  added_choices RETURNED but game.py:294 never reads this result: [{'label': 'Rush forward and untie him immediately.', 'action': 'end_story_success_heroic'}, {'label': 'Ask him what happened before you get any closer.', 'action': 'end_story_success_cautious'}]
+
+### had the choice been shown and selected, game.py:192-197 would return the action
+  string as player_choice -> game.py:312-314 passes it as player_input_text ->
+  player_action condition (event_manager.py:200-201) is exact-match lower():
+  heroic fired: True | override text starts: The story ends here.
+  game_ended flags: {'game_ended': True, 'game_ended_success': True}
+  OVERRIDE actually shown = end_game default (event_manager.py:151-154 clobbers prose): The story ends here.
+
+### once marking on the endings through this path (event_manager.py:77-78)
+  second attempt with once:true -> triggered again? True (check path SKIPS once-fired events, event_manager.py:51-55)
+
+### cautious ending untouched by heroic firing (separate id, also once)
+  cautious in triggered set: False
+
+### clockwork: steal_temporal_gear None + get_llm_options prompt build crash
+  inventory after steal: ['lockpicks', 'smoke_bomb']
+  ', '.join(inventory) OK
+
+### escape routes in clockwork still work despite None (inventory_has reads value:)
+  escape_with_smoke_bomb fired: False | flags: {}
+  override: 
+
+### turn-15 checkpoint vs real ending (game.py:334 beats game.py:352-377)
+  game_ended set by end_game -> loop breaks at game.py:344 BEFORE checkpoint code at game.py:352

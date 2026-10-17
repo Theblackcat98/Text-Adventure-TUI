@@ -1,0 +1,62 @@
+### 1. WHISPERS cascade: which flag breaks the chain first?
+  after 'Search desk': flags= ['has_journal', 'knows_elian_is_missing'] inv= [None]
+  read_journal_clue    -> {'inventory_has': False, 'flag_not_set': True}  => reachable: False
+  find_hidden_key      -> {'flag_set': False}  => reachable: False
+  arrive_at_bluffs     -> {'flag_set': False}  => reachable: False
+  enter_the_crypt      -> {'flag_set': False}  => reachable: False
+  rescue_elian         -> {'inventory_has': False}  => reachable: False
+  knows_about_bluffs is set ONLY by read_journal_clue (whispers...yaml:65-66),
+  which is gated on inventory_has elians_journal, which needs add_item at :41-42 to
+  have written 'item_id:' instead of 'value:'. Chain broken at turn 1.
+
+### 2. CLOCKWORK: inventory comes from the ARC, so only add_item is affected
+  arc initial_inventory (the_clockwork_heist_story_arc.yaml:7) = ['lockpicks', 'smoke_bomb']
+  'Scout the museum from the shadows.'           loc=thieves_den              inv=['lockpicks', 'smoke_bomb']
+       flags=['heist_started', 'museum_scouted']
+  'Sneak in through the service entrance.'       loc=museum_service_hall      inv=['lockpicks', 'smoke_bomb']
+       flags=['entered_stealthily', 'heist_started', 'inside_museum', 'museum_scouted']
+  'Find the Temporal Gear display case.'         loc=chronos_exhibition_hall  inv=['lockpicks', 'smoke_bomb']
+       flags=['entered_stealthily', 'found_gear_location', 'heist_started', 'inside_museum', 'museum_scouted']
+  'Use lockpicks to bypass security.'            loc=chronos_exhibition_hall  inv=['smoke_bomb']
+       flags=['entered_stealthily', 'found_gear_location', 'heist_started', 'inside_museum', 'museum_scouted', 'security_disabled']
+  'Take gear.'                                   loc=chronos_exhibition_hall  inv=['smoke_bomb', None]
+       flags=['entered_stealthily', 'found_gear_location', 'has_temporal_gear', 'heist_started', 'inside_museum', 'museum_scouted', 'security_disabled']
+  => the clockwork chain is NOT blocked; only add_item:186-187 is a no-op that leaves
+     the literal None in the inventory.
+
+### 3. Consequence of the stray None: game.py:130 does ', '.join(inventory) OUTSIDE try
+  source of get_llm_options, lines 122-145:
+  game.py:122 def get_llm_options(current_narrative: str, game_state_manager: GameStateManager) -> tuple[str, list[str]]:
+  game.py:123     player_stats = game_state_manager.get_stats()
+  game.py:124     inventory = game_state_manager.get_inventory()
+  game.py:125     location = game_state_manager.get_current_location()
+  game.py:126 
+  game.py:127     prompt = (
+  game.py:128         f"You are the narrator for a text adventure game. Your job is to describe the current scene and provide clear choices for the player.\n\n"
+  game.py:129         f"**Current Situation:**\n{current_narrative}\n\n"
+  game.py:130         f"**Player Status:**\n- Location: {location}\n- Health: {player_stats.get('health', 'N/A')}\n- Inventory: {', '.join(inventory) if inventory else 'Empty'}\n\n"
+  game.py:131         f"**Instructions:**\n"
+  game.py:132         f"1.  Write a brief, one-paragraph summary of the current scene to remind the player what's happening. This will be the main narrative text.\n"
+  game.py:133         f"2.  Then, provide exactly 4 distinct, actionable choices for the player. Each choice must start with a verb.\n"
+  game.py:134         f"3.  Format your entire response as a single JSON object with two keys: 'narrative_summary' (a string) and 'choices' (a list of strings).\n\n"
+  game.py:135         f"Example Response:\n"
+  game.py:136         f'{{"narrative_summary": "You are standing at the edge of a dark forest, the wind whispering through the trees. A narrow path leads deeper into the woods, and an old, gnarled tree seems to watch you with silent judgment.", "choices": ["Enter the forest path.", "Examine the gnarled tree.", "Search the area for other paths.", "Rest for a moment."]}}'
+  game.py:137     )
+  game.py:138 
+  game.py:139     try:
+  game.py:140         response = ollama_client.chat(
+  game.py:141             model=OLLAMA_MODEL,
+  game.py:142             messages=[{"role": "user", "content": prompt}],
+  game.py:143             options={"temperature": 0.7},
+  game.py:144             format="json",
+  game.py:145         )
+  game.py:146         raw_json_str = response["message"]["content"].strip()
+  ', '.join([None]) -> TypeError: sequence item 1: expected str instance, NoneType found
+  and that expression is evaluated while BUILDING the prompt string, i.e. before the
+  try: at game.py:139, so no fallback and no except branch can catch it.
+
+### 4. is low_health_warning (general_events.yaml:4-18) reachable in either story?
+  stats declared: whispers health 100 (arc:9), clockwork health 100 (arc:9)
+  the only health mutation in any shipped event: clockwork:272-274  health -20
+  => health floor is 80; condition is health <= 25 (general_events.yaml:9-12). Never true.
+  the stealth -10 (clockwork:96-98) is never tested by ANY condition type (stat_check is used once, for health only).

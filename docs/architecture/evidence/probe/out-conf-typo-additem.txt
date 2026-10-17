@@ -1,0 +1,28 @@
+### PROBE 1  flag_is_set typo  (chapter1_study.yaml:67, chapter2_coast.yaml:10, chapter3_crypt.yaml:12)
+  condition type used: ['location', 'player_intent', 'flag_is_set', 'flag_not_set']
+  trigger evaluate ->  False
+  'flag_is_set' present in _evaluate_trigger source?  False
+  'flag_set'      present in _evaluate_trigger source?  True
+  direct call with the shipped flag_set spelling:
+    flag_is_set version -> False
+    flag_set    version -> False
+  also via player_intent 'search_bookshelf': False
+
+### PROBE 2  add_item writes `value:`, engine reads action.get('item_id')
+  (scanning per file separately)
+  (scanning per file separately)
+  (scanning per file separately)
+  whispers_of_the_salted_crypt_story_events.yaml:42  find_elians_journal      add_item keys=['type', 'value']
+      inventory after trigger = [None]
+  whispers_of_the_salted_crypt_story_events.yaml:96  find_hidden_key          add_item keys=['type', 'value']
+      inventory after trigger = [None]
+  the_clockwork_heist_story_events.yaml:187  steal_temporal_gear      add_item keys=['type', 'value']
+      inventory after trigger = [None]
+
+### PROBE 2b  downstream `inventory_has` conditions
+  whispers_of_the_salted_crypt_story_events.yaml:42  read_journal_clue          inventory_has value='elians_journal'
+      with inventory==[None, None]: trigger -> False
+  whispers_of_the_salted_crypt_story_events.yaml:96  rescue_elian               inventory_has value='runic_key'
+      with inventory==[None, None]: trigger -> False
+  the_clockwork_heist_story_events.yaml:150  disable_security_lockpicks inventory_has value='lockpicks'
+      with inventory==[None, None]: trigger -> False

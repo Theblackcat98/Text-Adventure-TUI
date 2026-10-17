@@ -1,0 +1,69 @@
+imported game module from: /home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/game.py
+locale.getpreferredencoding(False): UTF-8
+stories_path anchor: /home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_parts
+
+== STEP 2: loader output ==
+story.id               : whispers_of_the_salted_crypt
+story.title            : Whispers of the Salted Crypt
+story.starting_location: elian_study
+story.initial_story_part: 01_intro.txt
+story.total_turns_estimate: 25
+story.difficulty/author/version: beginner / Text Adventure TUI Team / 1.0
+story.tags             : ['mystery', 'adventure', 'coastal', 'rescue', 'mentor']
+story.content_warnings : ['mild peril', 'mysterious disappearance']
+story.checkpoints      : [{'turn': 15, 'prompt_injection': 'Time is running short. You feel an increasing urgency to find Master Elian.'}, {'turn': 25, 'force_end_game': True, 'prompt_injection': 'The tide is rising again, and you must make your final choice.', 'flag_messages': [{'flag': 'elian_is_found', 'message_if_set': "You successfully rescued Master Elian from the Salted Crypt! He owes you his life, and the mysteries you've uncovered will fuel many future adventures.", 'message_if_not_set': 'Despite your best efforts, you were unable to locate Master Elian. The Salted Crypt keeps its secrets, and his fate remains unknown...'}]}]
+story.description[:70] : 'Your mentor Master Elian has vanished without a trace. His obsession w'
+player.stats           : {'health': 100, 'sanity': 100, 'knowledge': 10}
+player.inventory       : []
+len(story.events)      : 16
+story.events order     : ['low_health_warning', 'inventory_full_warning', 'first_time_in_location', 'long_time_in_location', 'help_command', 'debug_info', 'story_start', 'find_elians_journal', 'read_journal_clue', 'find_hidden_key', 'arrive_at_bluffs', 'tide_recedes', 'enter_the_crypt', 'rescue_elian', 'end_story_success_heroic', 'end_story_success_cautious']
+em.events dict keys    : ['low_health_warning', 'inventory_full_warning', 'first_time_in_location', 'long_time_in_location', 'help_command', 'debug_info', 'story_start', 'find_elians_journal', 'read_journal_clue', 'find_hidden_key', 'arrive_at_bluffs', 'tide_recedes', 'enter_the_crypt', 'rescue_elian', 'end_story_success_heroic', 'end_story_success_cautious']
+em.triggered_event_ids : set()
+execute_event_actions co_firstlineno: 260 (260 = live second definition; 18 = dead first)
+
+== STEP 3: GameState defaults ==
+flags            : {}
+turn_count       : 0
+turns_in_location: 0
+current_location : elian_study (from story.starting_location)
+
+== STEP 4: intro read ==
+intro_part_path   : /home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_parts/01_intro.txt
+intro file read OK
+intro text (repr) : 'You find yourself in a dimly lit room. A single flickering candle on a rickety wooden table is the only source of light. The air is damp and smells of old parchment and something else... something metallic. What do you do?\n'
+
+== STEP 5: forced story_start ==
+result keys       : ['added_choices', 'injected_narratives_post', 'injected_narratives_pre', 'override_narrative']
+has 'modified_prompt_instructions' key?  False (4-key _perform_actions shape => no)
+override_narrative is not None? True
+injected_pre/post  : [] / []
+added_choices      : []
+the passed [] now  : ["The player is in Master Elian's study. The goal is to find where he went. The most important objects in the room are the cluttered desk, a tall bookshelf filled with lore books, and a large map of the coastline pinned to the wall. Guide the player to investigate these things."] <- modify_prompt appended here; game.py never binds this list
+flags after        : {'knows_elian_is_missing': True}
+location after     : elian_study
+turn_count after   : 0
+turns_in_loc after : 0
+em.triggered_event_ids after: set() (story_start has no options.once => not marked)
+
+== STEP 6: override wins ==
+narrative == intro file text?           False
+narrative == story_start override text? True
+narrative shown to the player (repr):
+"The scent of old paper and dust hangs heavy in the air of your mentor's study.\nMaster Elian has been missing for three days. The city guard considers him another\neccentric old man who simply wandered off, but you know better. His obsession\nwas the Salted Crypt, a place of myth that he swore was real. His desk is a\nclutter of maps, books, and unfinished notes. You came here to find a clue,\nany clue, as to where he might have gone.\n"
+
+== STEP 9: end state ==
+first header would be: console.rule(f"Turn 0") -> 'Turn 0'
+'llm_instructions' does not exist yet: created at game.py:284, inside the
+loop, AFTER the get_llm_options call at :280 has already been sent.
+
+== STEP 7a: execute_event_actions with an id that does not exist ==
+returns 5-key dict: ['added_choices', 'injected_narratives_post', 'injected_narratives_pre', 'modified_prompt_instructions', 'override_narrative']
+override_narrative: None
+(a story whose YAML lacks story_start reaches this same branch at game.py:272;
+ override .get() is falsy -> intro text would survive game.py:273-274)
+
+== STEP 7b: missing intro file ==
+FileNotFoundError -> game.py:268-269 sets narrative = 'The story begins...'
+
+== STEP 7c: empty story arc file ==
+AttributeError: 'NoneType' object has no attribute 'get'  <- story_arc_data is None (yaml.safe_load of empty file)

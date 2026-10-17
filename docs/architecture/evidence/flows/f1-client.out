@@ -1,0 +1,3 @@
+game module file: /home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/game.py
+OLLAMA_HOST: 0.0.0.0 | OLLAMA_MODEL: phi4:latest
+Client constructed OK with no server running: Client

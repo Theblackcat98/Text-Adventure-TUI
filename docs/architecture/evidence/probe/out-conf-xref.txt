@@ -1,0 +1,82 @@
+====================================================================================================
+STORY whispers  <- text_adventure_tui_lib/events/whispers_of_the_salted_crypt_story_events.yaml
+====================================================================================================
+story_start                      once=False mode=MANUAL
+    TRIG : ['game_start=None']
+    ACT  : ['set_flag(knows_elian_is_missing)', 'change_location(elian_study)', 'override_narrative()', 'modify_prompt(The player is in Master )']
+find_elians_journal              once=True  mode=AND
+    TRIG : ['location=elian_study', "player_action_keyword=['search desk', 'examine desk', 'look at desk', 'investigate desk']", 'flag_not_set=has_journal']
+    ACT  : ['set_flag(has_journal)', 'add_item(elians_journal)', 'override_narrative()', 'modify_prompt(The player has just foun)']
+read_journal_clue                once=True  mode=AND
+    TRIG : ["player_action_keyword=['read journal', 'open journal', 'examine journal', 'look at journal']", 'inventory_has=elians_journal', 'flag_not_set=knows_about_bluffs']
+    ACT  : ['set_flag(knows_about_bluffs)', 'override_narrative()', 'modify_prompt(The player now knows abo)']
+find_hidden_key                  once=True  mode=AND
+    TRIG : ['location=elian_study', "player_action_keyword=['search bookshelf', 'examine bookshelf', 'look at bookshelf', 'investigate books']", 'flag_set=knows_about_bluffs', 'flag_not_set=has_key']
+    ACT  : ['set_flag(has_key)', 'add_item(runic_key)', 'override_narrative()', 'modify_prompt(The player now has the k)']
+arrive_at_bluffs                 once=True  mode=AND
+    TRIG : ["player_action_keyword=['go to bluffs', 'travel to bluffs', 'visit bluffs', 'saltstone bluffs', 'leave study']", 'flag_set=knows_about_bluffs']
+    ACT  : ['change_location(saltstone_bluffs)', 'override_narrative()', 'modify_prompt(The player is at the Sal)']
+tide_recedes                     once=True  mode=AND
+    TRIG : ['location=saltstone_bluffs', 'turn_count_in_location=3', 'flag_not_set=tide_is_low']
+    ACT  : ['set_flag(tide_is_low)', 'override_narrative()', 'modify_prompt(The tide is now low, rev)']
+enter_the_crypt                  once=True  mode=AND
+    TRIG : ['location=saltstone_bluffs', "player_action_keyword=['enter archway', 'go through archway', 'enter crypt', 'descend', 'climb down']", 'flag_set=tide_is_low']
+    ACT  : ['change_location(crypt_antechamber)', 'override_narrative()', 'modify_prompt(The player is now in the)']
+rescue_elian                     once=True  mode=AND
+    TRIG : ['location=crypt_antechamber', "player_action_keyword=['use key', 'insert key', 'unlock door', 'open door']", 'inventory_has=runic_key']
+    ACT  : ['remove_item(runic_key)', 'set_flag(elian_is_found)', 'override_narrative()', 'present_choices()']
+end_story_success_heroic         once=True  mode=AND
+    TRIG : ['player_action=end_story_success_heroic']
+    ACT  : ['set_flag(heroic_ending)', 'override_narrative()', 'end_game()']
+end_story_success_cautious       once=True  mode=AND
+    TRIG : ['player_action=end_story_success_cautious']
+    ACT  : ['set_flag(cautious_ending)', 'override_narrative()', 'end_game()']
+
+  FLAGS SET       : ['cautious_ending', 'elian_is_found', 'has_journal', 'has_key', 'heroic_ending', 'knows_about_bluffs', 'knows_elian_is_missing', 'tide_is_low']
+  FLAGS TESTED    : ['has_journal', 'has_key', 'knows_about_bluffs', 'tide_is_low']
+  SET-never-TESTED: ['cautious_ending', 'elian_is_found', 'heroic_ending', 'knows_elian_is_missing']
+  TESTED-never-SET: []
+  ITEMS written   : ['ITEM:elians_journal', 'ITEM:runic_key']
+  ITEMS tested    : ['ITEM:elians_journal', 'ITEM:runic_key']
+
+====================================================================================================
+STORY clockwork  <- text_adventure_tui_lib/events/the_clockwork_heist_story_events.yaml
+====================================================================================================
+story_start                      once=False mode=MANUAL
+    TRIG : ['game_start=None']
+    ACT  : ['set_flag(heist_started)', 'change_location(thieves_den)', 'override_narrative()', 'modify_prompt(The player is a master t)']
+scout_museum                     once=True  mode=AND
+    TRIG : ['location=thieves_den', "player_action_keyword=['scout', 'observe', 'watch', 'study museum', 'case the joint']", 'flag_not_set=museum_scouted']
+    ACT  : ['set_flag(museum_scouted)', 'override_narrative()', 'modify_prompt(The player has scouted t)']
+enter_museum_stealth             once=True  mode=AND
+    TRIG : ["player_action_keyword=['sneak in', 'service entrance', 'stealth', 'quietly', 'slip in']", 'flag_set=museum_scouted', 'flag_not_set=inside_museum']
+    ACT  : ['set_flag(inside_museum)', 'set_flag(entered_stealthily)', 'change_location(museum_service_hall)', 'override_narrative()', 'modify_prompt(The player has successfu)']
+enter_museum_bold                once=True  mode=AND
+    TRIG : ["player_action_keyword=['front door', 'bold', 'direct', 'main entrance', 'walk in']", 'flag_not_set=inside_museum']
+    ACT  : ['set_flag(inside_museum)', 'set_flag(entered_boldly)', 'change_location(museum_main_hall)', 'update_stat()', 'override_narrative()', 'modify_prompt(The player entered boldl)']
+find_temporal_gear_hall          once=True  mode=AND
+    TRIG : ['flag_set=inside_museum', "player_action_keyword=['find gear', 'temporal gear', 'search', 'look for', 'locate']", 'flag_not_set=found_gear_location']
+    ACT  : ['set_flag(found_gear_location)', 'change_location(chronos_exhibition_hall)', 'override_narrative()', 'modify_prompt(The player has found the)']
+disable_security_lockpicks       once=True  mode=AND
+    TRIG : ['location=chronos_exhibition_hall', "player_action_keyword=['use lockpicks', 'pick lock', 'disable security', 'bypass']", 'inventory_has=lockpicks', 'flag_not_set=security_disabled']
+    ACT  : ['set_flag(security_disabled)', 'remove_item(lockpicks)', 'override_narrative()', 'modify_prompt(The player has successfu)']
+steal_temporal_gear              once=True  mode=AND
+    TRIG : ['location=chronos_exhibition_hall', "player_action_keyword=['take gear', 'steal gear', 'grab', 'temporal gear']", 'flag_set=security_disabled', 'flag_not_set=has_temporal_gear']
+    ACT  : ['set_flag(has_temporal_gear)', 'add_item(temporal_gear)', 'override_narrative()', 'modify_prompt(The player has the Tempo)']
+escape_with_smoke_bomb           once=True  mode=AND
+    TRIG : ['flag_set=has_temporal_gear', "player_action_keyword=['smoke bomb', 'use smoke', 'throw smoke', 'smoke']", 'inventory_has=smoke_bomb']
+    ACT  : ['remove_item(smoke_bomb)', 'set_flag(escaped_successfully)', 'override_narrative()', 'end_game()']
+escape_stealth_route             once=True  mode=AND
+    TRIG : ['flag_set=has_temporal_gear', 'flag_set=entered_stealthily', "player_action_keyword=['sneak out', 'stealth', 'quietly', 'service entrance']"]
+    ACT  : ['set_flag(escaped_successfully)', 'override_narrative()', 'end_game()']
+desperate_escape                 once=True  mode=AND
+    TRIG : ['flag_set=has_temporal_gear', "player_action_keyword=['run', 'dash', 'flee', 'escape quickly']", 'flag_not_set=escaped_successfully']
+    ACT  : ['set_flag(barely_escaped)', 'update_stat()', 'override_narrative()', 'end_game()']
+
+  FLAGS SET       : ['barely_escaped', 'entered_boldly', 'entered_stealthily', 'escaped_successfully', 'found_gear_location', 'has_temporal_gear', 'heist_started', 'inside_museum', 'museum_scouted', 'security_disabled']
+  FLAGS TESTED    : ['entered_stealthily', 'escaped_successfully', 'found_gear_location', 'has_temporal_gear', 'inside_museum', 'museum_scouted', 'security_disabled']
+  SET-never-TESTED: ['barely_escaped', 'entered_boldly', 'heist_started']
+  TESTED-never-SET: []
+  ITEMS written   : ['ITEM:lockpicks', 'ITEM:smoke_bomb', 'ITEM:temporal_gear']
+  ITEMS tested    : ['ITEM:lockpicks', 'ITEM:smoke_bomb']
+

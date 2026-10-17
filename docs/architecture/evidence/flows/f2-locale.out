@@ -1,0 +1,2 @@
+locale.getpreferredencoding(False): ANSI_X3.4-1968
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 1934: ordinal not in range(128)

@@ -1,0 +1,45 @@
+### A. inventory_full_warning false positives  (general_events.yaml:20-30)
+  input='Look around the room.'                       inject_post=[]
+  input='Examine the target on the wall.'             inject_post=["Your hands are full. You'll need to drop something first."]
+  input='Search for information about the runes.'     inject_post=[]
+  input='Take the brass key.'                         inject_post=["Your hands are full. You'll need to drop something first."]
+  input='Approach the hovering object.'               inject_post=[]
+  input='Remember the plan you discussed earlier.'    inject_post=[]
+  input='Reach for the ledge.'                        inject_post=[]
+
+### A2. does inventory size affect it at all?
+  event has any numeric/capacity condition? [{'type': 'player_action_keyword', 'keywords': ['take', 'pick up', 'grab', 'get']}]
+  with an 11-item inventory, input='Look around.': []
+
+### B. first_time_in_location (general_events.yaml:33-45) once-global
+  turns_in_location starts at 0
+  arrive elian_study          turns_in_location=0
+     after +1 turn -> turns=1 fired=instruct triggered_ids={'first_time_in_location'}
+  arrive saltstone_bluffs     turns_in_location=0
+     after +1 turn -> turns=1 fired=- triggered_ids={'first_time_in_location'}
+  arrive crypt_antechamber    turns_in_location=0
+     after +1 turn -> turns=1 fired=- triggered_ids={'first_time_in_location'}
+  arrive clock_tower          turns_in_location=0
+     after +1 turn -> turns=1 fired=- triggered_ids={'first_time_in_location'}
+  arrive harbor               turns_in_location=0
+     after +1 turn -> turns=1 fired=- triggered_ids={'first_time_in_location'}
+
+### C. long_time_in_location (general_events.yaml:48-59) is NOT once
+  turns=5 -> fired
+  turns=6 -> fired
+  turns=7 -> fired
+  turns=8 -> fired
+
+### D. help_command / debug_info reachability inside a turn
+  pre-choice call  (game.py:285-287 passes player_input_text=''):
+    override= None  post= []
+  as free text '/help'                        override='Available commands:\n• Type' post=[]
+  as free text 'help'                         override='Available commands:\n• Type' post=[]
+  as free text '?'                            override='Available commands:\n• Type' post=[]
+  as free text 'I need help'                  override='Available commands:\n• Type' post=[]
+  as free text 'What can I do?'               override='Available commands:\n• Type' post=[]
+  as free text 'Check the status of things.'  override='None' post=['Debug info displayed in console.']
+  as LLM choice label 'Ask the librarian for help.'            override='Available commands:\n' post=[]
+  as LLM choice label 'Where do I go?'                         override='Available commands:\n' post=[]
+  as LLM choice label 'Examine the runes.'                     override='None' post=[]
+  as LLM choice label 'Gather more information.'               override='None' post=['Debug info displayed in console.']

@@ -1,0 +1,40 @@
+### A. could the legacy dir ever be loaded?  yaml_loader.py:38-45, 96-106
+  files matching discover_stories()' glob (story_manager.py:44): ['the_clockwork_heist_story_arc.yaml', 'whispers_of_the_salted_crypt_story_arc.yaml']
+  arc the_clockwork_heist_story_arc.yaml: story_name='the_clockwork_heist' -> arc file exists=True -> _load_story_old_format NOT called (yaml_loader.py:43-45)
+  arc whispers_of_the_salted_crypt_story_arc.yaml: story_name='whispers_of_the_salted_crypt' -> arc file exists=True -> _load_story_old_format NOT called (yaml_loader.py:43-45)
+  legacy loader would need a story_name with NO *_story_arc.yaml; there is no such name in the repo: ['Whispers_of_the_Salted_Crypt']
+  and legacy loader would look for sp/<name>/  (yaml_loader.py:100), i.e. a
+  directory literally named after the story_id, not Whispers_of_the_Salted_Crypt
+
+### B. collision if both copies were ever concatenated (event_manager.py:8)
+  18 event dicts -> EventManager.events has 10 entries (dict comprehension at event_manager.py:8 keeps the LAST of each id)
+  silently shadowed ids: ['arrive_at_bluffs', 'enter_the_crypt', 'find_elians_journal', 'find_hidden_key', 'read_journal_clue', 'rescue_elian', 'story_start', 'tide_recedes']
+     arrive_at_bluffs: surviving copy came from the legacy dir ['chapter2_coast.yaml']; its conditions are [('player_action', 'go_to_bluffs'), ('flag_is_set', 'knows_about_bluffs')]
+     enter_the_crypt: surviving copy came from the legacy dir ['chapter3_crypt.yaml']; its conditions are [('location', 'saltstone_bluffs'), ('player_action', 'enter_archway'), ('flag_is_set', 'tide_is_low')]
+     find_elians_journal: surviving copy came from the legacy dir ['chapter1_study.yaml']; its conditions are [('location', 'elian_study'), ('player_intent', 'search_desk'), ('flag_not_set', 'has_journal')]
+     find_hidden_key: surviving copy came from the legacy dir ['chapter1_study.yaml']; its conditions are [('location', 'elian_study'), ('player_intent', 'search_bookshelf'), ('flag_is_set', 'knows_about_bluffs'), ('flag_not_set', 'has_key')]
+     read_journal_clue: surviving copy came from the legacy dir ['chapter1_study.yaml']; its conditions are [('player_intent', 'read_journal'), ('inventory_has', None), ('flag_not_set', 'knows_about_bluffs')]
+     rescue_elian: surviving copy came from the legacy dir ['chapter3_crypt.yaml']; its conditions are [('location', 'crypt_antechamber'), ('player_action', 'use_key'), ('inventory_has', None)]
+     story_start: surviving copy came from the legacy dir ['game_setup.yaml']; its conditions are [('game_start', None)]
+     tide_recedes: surviving copy came from the legacy dir ['chapter2_coast.yaml']; its conditions are [('location', 'saltstone_bluffs'), ('turn_count_in_location', 3), ('flag_not_set', 'tide_is_low')]
+
+### C. reachability of every whispers beat, driven through EventManager
+  start: location=elian_study flags=['knows_elian_is_missing']
+         inventory=[]
+  T 1 label='Search desk for any clue.'        override=Y loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 2 label='Read journal.'                    override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 3 label='Search bookshelf.'                override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 4 label='Leave study.'                     override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 5 label='Look around.'                     override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 6 label='Look around.'                     override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 7 label='Look around.'                     override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 8 label='Enter archway.'                   override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T 9 label='Use key on the door.'             override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  T10 label='Take the gear.'                   override=n loc=elian_study        inv=[None] flags=['has_journal', 'knows_elian_is_missing']
+  end of run: game_ended = None
+  reached beats: ['story_start', 'find_elians_journal']
+  NEVER triggered: ['arrive_at_bluffs', 'end_story_success_cautious', 'end_story_success_heroic', 'enter_the_crypt', 'find_hidden_key', 'read_journal_clue', 'rescue_elian', 'story_start', 'tide_recedes']
+
+### D. same run but with `inventory_has` manually satisfied, to isolate the add_item bug
+  with runic_key present, rescue_elian triggered? False | elian_is_found? None
+  added_choices offered by rescue_elian were returned by the engine but dropped by game.py:294

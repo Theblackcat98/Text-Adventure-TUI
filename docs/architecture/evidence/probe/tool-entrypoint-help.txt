@@ -1,0 +1,55 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                           Terminal Text Adventure                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+INFO: Loading new story: SHORT
+DEBUG: Successfully loaded events from 
+'text_adventure_tui_lib.events/general_events.yaml'. Found 3 event(s).
+DEBUG: Successfully loaded events from 
+'text_adventure_tui_lib.events/short_story_events.yaml'. Found 3 event(s).
+
+--- Turn 1 ---
+╭─────────────────────────────────── Story ────────────────────────────────────╮
+│                                                                              │
+│  You find yourself in a dimly lit room. A single flickering candle on a      │
+│  rickety wooden table is the only source of light. The air is damp and       │
+│  smells of old parchment and something else... something metallic. What do   │
+│  you do?                                                                     │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ERR: Ollama API (host: 0.0.0.0): 404 - model 'phi4:latest' not found
+
+Choose your action (type number, or /save, /quit, /debug state, /force_event 
+<id> ):
+1. Fallback: Look around the room more closely.
+2. Fallback: Try to open the only door.
+3. Fallback: Check your pockets for anything useful.
+4. Fallback: Shout to see if anyone is nearby.
+Enter choice: Traceback (most recent call last):
+  File "/home/nick/.local/bin/text-adventure-tui", line 8, in <module>
+    sys.exit(game_loop())
+             ~~~~~~~~~^^
+  File "/home/nick/.local/lib/python3.13/site-packages/text_adventure_tui_lib/game.py", line 655, in game_loop
+    player_choice_text = get_player_choice(
+        choices=get_llm_options(story_text),
+    ...<3 lines>...
+        event_manager_for_save=event_manager
+    )
+  File "/home/nick/.local/lib/python3.13/site-packages/text_adventure_tui_lib/game.py", line 268, in get_player_choice
+    chosen_option_str = Prompt.ask(
+                        ~~~~~~~~~~^
+        prompt_text_ask, # Short text for the actual input line
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        show_choices=False,
+        ^^^^^^^^^^^^^^^^^^^
+    ).strip()
+    ^
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/prompt.py", line 149, in ask
+    return _prompt(default=default, stream=stream)
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/prompt.py", line 292, in __call__
+    value = self.get_input(self.console, prompt, self.password, stream=stream)
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/prompt.py", line 211, in get_input
+    return console.input(prompt, password=password, stream=stream)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nick/.local/lib/python3.13/site-packages/rich/console.py", line 2170, in input
+    result = input()
+EOFError: EOF when reading a line

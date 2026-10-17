@@ -1,0 +1,11 @@
+  File "/tmp/opencode/cdd-text-adventure-tui/flows/f2-locale2.py", line 6, in <module>
+  File "/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/yaml_loader.py", line 54, in load_story_and_player
+  File "/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/yaml_loader.py", line 11, in _load_yaml
+  File "/usr/lib64/python3.13/site-packages/yaml/__init__.py", line 125, in safe_load
+  File "/usr/lib64/python3.13/site-packages/yaml/__init__.py", line 79, in load
+  File "/usr/lib64/python3.13/site-packages/yaml/loader.py", line 34, in __init__
+  File "/usr/lib64/python3.13/site-packages/yaml/reader.py", line 85, in __init__
+  File "/usr/lib64/python3.13/site-packages/yaml/reader.py", line 124, in determine_encoding
+  File "/usr/lib64/python3.13/site-packages/yaml/reader.py", line 178, in update_raw
+  File "/usr/lib64/python3.13/encodings/ascii.py", line 26, in decode
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 1934: ordinal not in range(128)

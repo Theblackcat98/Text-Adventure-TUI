@@ -1,0 +1,68 @@
+shipped ids : ['arrive_at_bluffs', 'end_story_success_cautious', 'end_story_success_heroic', 'enter_the_crypt', 'find_elians_journal', 'find_hidden_key', 'read_journal_clue', 'rescue_elian', 'story_start', 'tide_recedes']
+legacy  ids : ['arrive_at_bluffs', 'enter_the_crypt', 'find_elians_journal', 'find_hidden_key', 'read_journal_clue', 'rescue_elian', 'story_start', 'tide_recedes']
+shared      : ['arrive_at_bluffs', 'enter_the_crypt', 'find_elians_journal', 'find_hidden_key', 'read_journal_clue', 'rescue_elian', 'story_start', 'tide_recedes']
+shipped-only: ['end_story_success_cautious', 'end_story_success_heroic']
+legacy-only : []
+
+--- arrive_at_bluffs   DIFFERS
+       COND  ['player_action_keyword', 'flag_set']  vs  ['player_action', 'flag_is_set']
+--- enter_the_crypt   DIFFERS
+       COND  ['location', 'player_action_keyword', 'flag_set']  vs  ['location', 'player_action', 'flag_is_set']
+       ACT   ['change_location', 'override_narrative', 'modify_prompt']  vs  ['change_location', 'override_narrative']
+--- find_elians_journal   DIFFERS
+       COND  ['location', 'player_action_keyword', 'flag_not_set']  vs  ['location', 'player_intent', 'flag_not_set']
+--- find_hidden_key   DIFFERS
+       COND  ['location', 'player_action_keyword', 'flag_set', 'flag_not_set']  vs  ['location', 'player_intent', 'flag_is_set', 'flag_not_set']
+       ACT   ['set_flag', 'add_item', 'override_narrative', 'modify_prompt']  vs  ['set_flag', 'add_item', 'override_narrative']
+--- read_journal_clue   DIFFERS
+       COND  ['player_action_keyword', 'inventory_has', 'flag_not_set']  vs  ['player_intent', 'inventory_has', 'flag_not_set']
+       ACT   ['set_flag', 'override_narrative', 'modify_prompt']  vs  ['set_flag', 'override_narrative', 'add_choice']
+--- rescue_elian   DIFFERS
+       COND  ['location', 'player_action_keyword', 'inventory_has']  vs  ['location', 'player_action', 'inventory_has']
+--- story_start   IDENTICAL SHAPE
+--- tide_recedes   IDENTICAL SHAPE
+
+### flags / locations / items per copy
+  flags set        shipped=['cautious_ending', 'elian_is_found', 'has_journal', 'has_key', 'heroic_ending', 'knows_about_bluffs', 'knows_elian_is_missing', 'tide_is_low']
+                   legacy =['elian_is_found', 'has_journal', 'has_key', 'knows_about_bluffs', 'knows_elian_is_missing', 'tide_is_low']
+                   DIFF: only-shipped=['cautious_ending', 'heroic_ending'] only-legacy=[]
+  flags tested     shipped=['has_journal', 'has_key', 'knows_about_bluffs', 'tide_is_low']
+                   legacy =['has_journal', 'has_key', 'knows_about_bluffs', 'tide_is_low']
+  locations set    shipped=['crypt_antechamber', 'elian_study', 'saltstone_bluffs']
+                   legacy =['crypt_antechamber', 'elian_study', 'saltstone_bluffs']
+  locations tested shipped=['crypt_antechamber', 'elian_study', 'saltstone_bluffs']
+                   legacy =['crypt_antechamber', 'elian_study', 'saltstone_bluffs']
+  items written    shipped=['elians_journal', 'runic_key']
+                   legacy =['elians_journal', 'runic_key']
+  items tested     shipped=['elians_journal', 'runic_key']
+                   legacy =[None]
+                   DIFF: only-shipped=['elians_journal', 'runic_key'] only-legacy=[None]
+
+### verbatim narrative diff for the 5 shared ids
+  arrive_at_bluffs             prose identical: True
+  enter_the_crypt              prose identical: False
+      --- shipped
+      +++ legacy
+      @@ -5 +4,0 @@
+      -
+  find_elians_journal          prose identical: True
+  find_hidden_key              prose identical: False
+      --- shipped
+      +++ legacy
+      @@ -5 +4,0 @@
+      -
+  read_journal_clue            prose identical: False
+      --- shipped
+      +++ legacy
+      @@ -6 +5,0 @@
+      -
+  rescue_elian                 prose identical: True
+  story_start                  prose identical: True
+  tide_recedes                 prose identical: True
+
+### arc: is the legacy dir referenced anywhere?
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui.egg-info/SOURCES.txt:25:text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter1_study.yaml
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui.egg-info/SOURCES.txt:26:text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter2_coast.yaml
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui.egg-info/SOURCES.txt:27:text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter3_crypt.yaml
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui.egg-info/SOURCES.txt:28:text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/game_setup.yaml
+

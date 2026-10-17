@@ -1,0 +1,50 @@
+### Step 1  `present_choices` -> added_choices  (event_manager.py:139-147)
+  override_narrative set : True
+  added_choices returned  : [{'label': 'Rush forward and untie him immediately.', 'action': 'end_story_success_heroic'}, {'label': 'Ask him what happened before you get any closer.', 'action': 'end_story_success_cautious'}]
+
+### Step 2  does game.py ever read added_choices from the POST-choice result?
+  game.py:170      added_choices: list[dict],
+  game.py:174      all_choices = choices + [c["label"] for c in added_choices]
+  game.py:192                  action = added_choices[chosen_index - len(choices)]["action"]
+  game.py:285          event_results = event_manager.check_and_trigger_events(
+  game.py:290          for text in event_results.get("injected_narratives_pre", []):
+  game.py:294          added_choices = event_results.get("added_choices", [])
+  game.py:296              choices, added_choices, game_state_manager, event_manager
+  game.py:301              event_results = event_manager.execute_event_actions(
+  game.py:305              narrative = event_results.get("override_narrative", narrative)
+  game.py:313          event_results = event_manager.check_and_trigger_events(
+  game.py:318          if event_results.get("override_narrative"):
+  game.py:319              narrative = event_results["override_narrative"]
+  game.py:330          for text in event_results.get("injected_narratives_post", []):
+
+### Step 3  simulate the exact turn the way game.py:276-348 does it
+  PRE-CHOICE  added_choices (game.py:294) : []
+  POST-CHOICE added_choices (never read)  : []
+  POST-CHOICE override_narrative read at game.py:318 -> False
+  => the 2 ending choices are constructed and thrown away
+  triggered_event_ids after rescue_elian: ['rescue_elian']
+
+### Step 4  can the player type the action id?  game.py:181-199
+  typed 'end_story_success_heroic'                 -> prints 'Invalid choice.' (game.py:199) and re-prompts -- NEVER reaches event_manager
+  typed '1'                                        -> returns LLM choice label or added_choice.action
+  typed 'End Story Success Heroic'                 -> prints 'Invalid choice.' (game.py:199) and re-prompts -- NEVER reaches event_manager
+  typed 'trigger:end_story_success_heroic'         -> prints 'Invalid choice.' (game.py:199) and re-prompts -- NEVER reaches event_manager
+
+### Step 5  `player_action` condition semantics (event_manager.py:200-201)
+  'end_story_success_heroic'       == 'end_story_success_heroic' -> True
+  'End_Story_Success_Heroic'       == 'end_story_success_heroic' -> True
+  'end_story_success_heroic.'      == 'end_story_success_heroic' -> False
+  '  end_story_success_heroic  '   == 'end_story_success_heroic' -> False
+
+### Step 6  the only live path to the endings: /force_event (game.py:212-213)
+  override_narrative[:60] : The story ends here.
+  flags now               : {'heroic_ending': True, 'game_ended': True, 'game_ended_success': True}
+  triggered_event_ids     : ['end_story_success_heroic'] <- once:true honoured at event_manager.py:278-279
+  second force -> game_ended_success still set, override replaced: True
+  NOTE: execute_event_actions does NOT consult `once` before running, only records it
+
+### Step 7  which execute_event_actions survives?
+  'def execute_event_actions' occurrences: 2
+  surviving definition starts at line: 260
+  surviving definition has docstring: Execute actions for a specific event by ID.
+  surviving definition prints the DEBUG 'not found' banner: False

@@ -1,0 +1,71 @@
+### A. does the arc's initial_story_part exist, and is it overwritten?  (game.py:264-274)
+  whispers_of_the_salted_crypt: initial_story_part='01_intro.txt' exists=True
+     file starts: 'You find yourself in a dimly lit room. A single flickering candle on a'
+     story_start has override_narrative: True (434 chars)
+     => game.py:273-274 REPLACES the .txt narrative immediately
+  the_clockwork_heist: initial_story_part='clockwork_intro.txt' exists=True
+     file starts: 'The rain patters against the grimy windows of your hideout as you stud'
+     story_start has override_narrative: True (259 chars)
+     => game.py:273-274 REPLACES the .txt narrative immediately
+
+### B. FileNotFoundError fallback text
+  game.py:268-269 -> narrative = 'The story begins...'
+
+### C. story_parts/ inventory
+  story_parts/01_intro.txt  (223 bytes)
+  story_parts/Whispers_of_the_Salted_Crypt/chapter1_study.yaml  (2904 bytes)
+  story_parts/Whispers_of_the_Salted_Crypt/chapter2_coast.yaml  (1982 bytes)
+  story_parts/Whispers_of_the_Salted_Crypt/chapter3_crypt.yaml  (2116 bytes)
+  story_parts/Whispers_of_the_Salted_Crypt/game_setup.yaml  (1397 bytes)
+  story_parts/__init__.py  (0 bytes)
+  story_parts/clockwork_intro.txt  (857 bytes)
+  story_parts/idea.txt  (8815 bytes)
+  story_parts/the_clockwork_heist_story_arc.yaml  (1504 bytes)
+  story_parts/whispers_intro.txt  (887 bytes)
+  story_parts/whispers_of_the_salted_crypt_story_arc.yaml  (1533 bytes)
+
+### D. is `initial_story_part` ever used for anything but the first turn?
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/game.py:264:        intro_part_path = stories_path / story.initial_story_part
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/yaml_loader.py:83:    story.initial_story_part = story_arc_data.get("initial_story_part", "01_intro.txt")
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/yaml_loader.py:132:    story.initial_story_part = "01_intro.txt"
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_manager.py:97:            initial_story_part = story_arc_data.get("initial_story_part", "01_intro.txt")
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_manager.py:98:            story_part_file = self.stories_path / initial_story_part
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/story_manager.py:161:            "initial_story_part": f"{story_id}_intro.txt",
+/home/nick/Documents/Projects/Text-Adventure-TUI/text_adventure_tui_lib/data_structures.py:27:    initial_story_part: str = "01_intro.txt"
+
+
+### E. what does `story_tool.py create` write (the author extension point)?
+Created story template for 'My Story' (ID: mystory)
+Files created:
+  - /tmp/tmpmmgqh8g2/sp/mystory_story_arc.yaml
+  - /tmp/tmpmmgqh8g2/sp/mystory_intro.txt
+  - /tmp/tmpmmgqh8g2/ev/mystory_story_events.yaml
+  created ev/mystory_story_events.yaml
+  created sp/mystory_intro.txt
+  created sp/mystory_story_arc.yaml
+  ---- arc ----
+  title: My Story
+  starting_location: start
+  initial_story_part: mystory_intro.txt
+  total_turns_estimate: 20
+  initial_inventory: []
+  initial_player_stats:
+    health: 100
+  description: 'A new adventure: My Story'
+  checkpoints:
+  - turn: 20
+    force_end_game: true
+    prompt_injection: The story reaches its natural conclusion.
+    flag_messages:
+    - flag: success
+      message_if_set: You have succeeded in your quest!
+      message_if_not_set: Your adventure ends, but perhaps not as you hoped.
+  tags:
+  - adventure
+  difficulty: medium
+  content_warnings: []
+  author: me
+  version: '1.0'
+  
+  ---- validate that generated story ----
+  is_valid: True errors: [] warnings: []

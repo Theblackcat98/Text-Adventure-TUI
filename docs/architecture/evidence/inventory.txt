@@ -1,0 +1,238 @@
+
+===== IDENTITY =====
+repo_root: /home/nick/Documents/Projects/Text-Adventure-TUI
+git_head: 7f349d1
+git_branch: main
+git_dirty_files: 1
+commits_total: 37
+first_commit: 2025-06-20 feat: Implement initial CLI text adventure game structure
+last_commit: 2025-07-22 Merge pull request #16 from Theblackcat98/codegen-bot/fix-entry-point-and-enhance-docs
+
+===== TOP-LEVEL LAYOUT =====
+AGENTS.md
+DEVELOPER_GUIDE.md
+dist
+docs
+.github
+.gitignore
+LICENSE
+MANIFEST.in
+README.md
+README_OLD.md
+requirements-dev.txt
+requirements.txt
+setup.py
+story_tool.py
+.temp
+tests
+text_adventure_tui.egg-info
+text_adventure_tui_lib
+
+--- depth-2 directories (structure signal) ---
+.
+./docs
+./.github
+./.github/workflows
+./tests
+./text_adventure_tui_lib
+./text_adventure_tui_lib/events
+./text_adventure_tui_lib/story_parts
+
+===== SOURCE FILES BY SIZE (largest 60 = the reading order that matters) =====
+  466 ./text_adventure_tui_lib/game.py
+  281 ./text_adventure_tui_lib/event_manager.py
+  263 ./text_adventure_tui_lib/story_manager.py
+  168 ./story_tool.py
+  142 ./text_adventure_tui_lib/yaml_loader.py
+   92 ./tests/test_new_engine.py
+   85 ./tests/test_game_engine.py
+   56 ./text_adventure_tui_lib/game_state_manager.py
+   52 ./setup.py
+   45 ./text_adventure_tui_lib/data_structures.py
+    3 ./tests/test_game_basics.py
+    0 ./text_adventure_tui_lib/story_parts/__init__.py
+    0 ./text_adventure_tui_lib/__init__.py
+    0 ./text_adventure_tui_lib/events/__init__.py
+
+===== LINES BY EXTENSION (hand-written source only) =====
+    1653  .py
+
+===== SOURCE FILE COUNT BY TOP-LEVEL DIRECTORY (candidate section seams) =====
+      9 text_adventure_tui_lib
+      3 tests
+      2 (root)
+
+===== MANIFESTS AND BUILD FILES =====
+./requirements-dev.txt
+./requirements.txt
+./setup.py
+
+===== ENTRY POINTS =====
+--- declared console entry points (manifest lines, scripts/bin/entry_points) ---
+./setup.py:40:    entry_points={
+./setup.py:41:        "console_scripts": [
+--- bin/ cmd/ scripts/ dirs ---
+
+===== CONFIG AND DATA FILES (names only — never print secret values) =====
+./.github/workflows/python-ci.yml
+./text_adventure_tui_lib/events/general_events.yaml
+./text_adventure_tui_lib/events/the_clockwork_heist_story_events.yaml
+./text_adventure_tui_lib/events/whispers_of_the_salted_crypt_story_events.yaml
+./text_adventure_tui_lib/story_parts/the_clockwork_heist_story_arc.yaml
+./text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter1_study.yaml
+./text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter2_coast.yaml
+./text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter3_crypt.yaml
+./text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/game_setup.yaml
+./text_adventure_tui_lib/story_parts/whispers_of_the_salted_crypt_story_arc.yaml
+
+===== TEST FILES AND SHAPE =====
+./tests/test_game_basics.py
+./tests/test_game_engine.py
+./tests/test_new_engine.py
+--- test file count / total test source lines ---
+3
+180
+--- fixtures / mocks / factories / snapshots dirs ---
+
+===== DOCS: promise-vs-code reconciliation input =====
+  587 ./DEVELOPER_GUIDE.md
+  387 ./README_OLD.md
+  275 ./README.md
+  120 ./docs/customization.md
+  105 ./docs/architecture.md
+   26 ./AGENTS.md
+
+===== CI AND AUTOMATION =====
+./.github/workflows/python-ci.yml
+
+===== GIT ACTIVITY: HOTSPOTS =====
+window: ALL history (no commits in the last 6 months)
+     11 text_adventure_tui_lib/game.py
+      9 game.py
+      7 setup.py
+      6 text_adventure_tui_lib/event_manager.py
+      5 README.md
+      4 text_adventure_tui_lib/data_structures.py
+      3 text_adventure_tui_lib/game_state_manager.py
+      3 requirements-dev.txt
+      3 MANIFEST.in
+      3 .github/workflows/python-ci.yml
+      2 text_adventure_tui_lib/yaml_loader.py
+      2 text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter1_study.yaml
+      2 text_adventure_tui_lib/story_parts/story_arc.yaml
+      2 text_adventure_tui_lib/story_parts/short_story_arc.yaml
+      2 text_adventure_tui_lib/story_parts/medium_story_arc.yaml
+      2 text_adventure_tui_lib/story_parts/long_story_arc.yaml
+      2 text_adventure_tui_lib/events/short_story_events.yaml
+      2 text_adventure_tui_lib/events/medium_story_events.yaml
+      2 text_adventure_tui_lib/events/long_story_events.yaml
+      2 text_adventure_tui_lib/events/general_events.yaml
+      2 DEVELOPER_GUIDE.md
+      1 text_adventure_tui_lib/story_parts/whispers_of_the_salted_crypt_story_arc.yaml
+      1 text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/game_setup.yaml
+      1 text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter3_crypt.yaml
+      1 text_adventure_tui_lib/story_parts/Whispers_of_the_Salted_Crypt/chapter2_coast.yaml
+      1 text_adventure_tui_lib/story_parts/whispers_intro.txt
+      1 text_adventure_tui_lib/story_parts/the_clockwork_heist_story_arc.yaml
+      1 text_adventure_tui_lib/story_parts/__init__.py
+      1 text_adventure_tui_lib/story_parts/idea.txt
+      1 text_adventure_tui_lib/story_parts/clockwork_intro.txt
+--- 20 most-recently-modified source files ---
+  2026-10-12 ./text_adventure_tui_lib/yaml_loader.py
+  2026-10-12 ./text_adventure_tui_lib/story_parts/__init__.py
+  2026-10-12 ./text_adventure_tui_lib/game.py
+  2026-10-12 ./text_adventure_tui_lib/game_state_manager.py
+  2026-10-12 ./text_adventure_tui_lib/story_manager.py
+  2026-10-12 ./text_adventure_tui_lib/data_structures.py
+  2026-10-12 ./text_adventure_tui_lib/event_manager.py
+  2026-10-12 ./text_adventure_tui_lib/events/__init__.py
+  2026-10-12 ./text_adventure_tui_lib/__init__.py
+  2026-10-12 ./tests/test_game_basics.py
+  2026-10-12 ./tests/test_game_engine.py
+  2026-10-12 ./tests/test_new_engine.py
+  2026-10-12 ./setup.py
+  2026-10-12 ./story_tool.py
+
+===== RECENT HISTORY (intent and evolution) =====
+2025-07-22 7f349d1 Merge pull request #16 from Theblackcat98/codegen-bot/fix-entry-point-and-enhance-docs
+2025-07-22 cb9fddc Fix entry point and enhance documentation
+2025-07-18 c028f5b Merge pull request #15 from Theblackcat98/feature/complete-story-system-and-event-engine
+2025-07-18 a7db4ae Complete story system and event engine implementation
+2025-07-14 6ab91ae Merge pull request #14 from Theblackcat98/fix-llm-verbosity-and-code-improvements
+2025-07-15 c5d909f feat: Implement player intent recognition
+2025-07-14 e81ef3f Merge pull request #11 from Theblackcat98/fix-llm-verbosity-and-code-improvements
+2025-07-15 12b412a Fix LLM verbosity and improve game loop
+2025-07-14 b4ba3f2 Merge pull request #9 from Theblackcat98/feature/game-engine-implementation
+2025-07-14 6308b87 I implemented the following features to support the existing story files: - `player_action` trigger - `add_choice` and `present_choices` actions - `turn_count_in_location` trigger
+2025-07-01 3d86cb5 game engine
+2025-06-25 ccb83ff Merge pull request #8 from Theblackcat98/fix/invalid-classifier
+2025-06-25 6a15c57 Fix: Update invalid PyPI classifier
+2025-06-25 2d5d1b0 Merge pull request #7 from Theblackcat98/fix/initialization-errors
+2025-06-25 1bd0879 Fix: Correct indentation, global declaration, and ensure dependencies
+2025-06-25 c6bf6be Merge pull request #6 from Theblackcat98/feature/comprehensive-game-enhancements
+2025-06-25 1a9e305 feat: Implement main menu, save/resume, and advanced event system
+2025-06-25 3258595 new stories
+2025-06-25 8f7c0c0 Merge pull request #5 from Theblackcat98/initial-game-structure
+2025-06-25 15090fc Merge pull request #4 from Theblackcat98/feat/pypi-packaging-termux
+--- file churn by month ---
+     26 2025-06
+     11 2025-07
+
+===== INTENT MARKERS IN SOURCE (what authors flagged as unfinished) =====
+./tests/test_game_basics.py:1:def test_placeholder():
+./tests/test_game_basics.py:2:    """A simple placeholder test."""
+
+===== SIDE-EFFECT SURFACE (which files reach outside the process) =====
+--- subprocess / shell ---
+--- network clients ---
+--- database / persistence ---
+--- filesystem writes ---
+./tests/test_new_engine.py
+./text_adventure_tui_lib/game.py
+./text_adventure_tui_lib/story_manager.py
+--- env / secrets access ---
+./text_adventure_tui_lib/game.py
+--- global / module state ---
+./text_adventure_tui_lib/game.py
+--- concurrency primitives ---
+--- logging / observability ---
+./story_tool.py
+./text_adventure_tui_lib/game.py
+./text_adventure_tui_lib/story_manager.py
+
+===== DECLARED DEPENDENCIES (direct only, from manifests) =====
+### requirements.txt
+1:ollama>=0.1.0,<0.3.0
+2:rich>=10.0.0,<14.0.0
+3:PyYAML>=5.0,<7.0
+### setup.py
+4:    long_description = fh.read()
+7:    name="text-adventure-tui",  # Changed to desired PyPI name
+8:    version="0.1.1", # Incremented version
+9:    author="The Black Cat Codes",
+10:    author_email="author@example.com", # Please update this with your actual email
+11:    description="A dynamic text adventure game for your terminal, powered by Ollama LLMs.",
+12:    long_description=long_description,
+13:    long_description_content_type="text/markdown",
+14:    url="https://github.com/Theblackcat98/Text-Adventure-TUI",
+15:    packages=["text_adventure_tui_lib", "text_adventure_tui_lib.story_parts", "text_adventure_tui_lib.events"], # Define packages
+16:    package_data={
+17:        "text_adventure_tui_lib.story_parts": ["*.txt", "*.yaml"],
+18:        "text_adventure_tui_lib.events": ["*.yaml"], # Include event YAML files
+20:    classifiers=[
+21:        "Development Status :: 3 - Alpha",
+22:        "Intended Audience :: End Users/Desktop",
+23:        "Topic :: Games/Entertainment :: Role-Playing",
+24:        "License :: OSI Approved :: MIT License",
+25:        "Programming Language :: Python :: 3",
+26:        "Programming Language :: Python :: 3.7",
+27:        "Programming Language :: Python :: 3.8",
+28:        "Programming Language :: Python :: 3.9",
+29:        "Programming Language :: Python :: 3.10",
+30:        "Programming Language :: Python :: 3.11",
+31:        "Operating System :: OS Independent",
+
+===== DONE =====
+Next: choose section seams from 'LINES BY EXTENSION' and 'SOURCE FILE COUNT BY
+TOP-LEVEL DIRECTORY', then build a coverage ledger assigning every source file
+to exactly one section before dispatching Wave 1.
