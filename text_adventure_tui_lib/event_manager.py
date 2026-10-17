@@ -37,6 +37,11 @@ class EventManager:
         self.triggered_event_ids = set()
         self.fired_event_locations = set()
         self._fired_in_turn = {}
+        # Tracks every event that actually fires (including repeatable ones),
+        # so the game can report "events fired vs. total" on the ending
+        # screen. ``triggered_event_ids`` only grows for ``once`` events.
+        self.fired_ids = set()
+        self.fire_counts = {}
         self.console = console_instance
 
     def get_state(self):
@@ -191,6 +196,11 @@ class EventManager:
         game_state_manager: GameStateManager,
         llm_prompt_instructions: list[str],
     ):
+        # Record the firing before running actions so force-executed and
+        # auto-triggered events share one tracking path.
+        self.fired_ids.add(event.id)
+        self.fire_counts[event.id] = self.fire_counts.get(event.id, 0) + 1
+
         override_narrative = None
         injected_pre = []
         injected_post = []

@@ -36,6 +36,11 @@ console = Console(theme=custom_theme)
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "phi4:latest")
 DEBUG_MODE_ENABLED = False
+# Tracks whether Ollama is reachable this session. Once a call fails we stop
+# retrying so an offline server cannot stall every turn; the LLM call sites
+# degrade to authored/generic fallbacks instead.
+LLM_AVAILABLE = True
+LLM_OFFLINE_BANNER_SHOWN = False
 SAVE_DIR_NAME = ".text_adventure_tui_saves"
 SAVE_GAME_PATH = Path.home() / SAVE_DIR_NAME
 GAME_TITLE = "Terminal Text Adventure"
@@ -48,6 +53,23 @@ ollama_client = None
 def debug_print(message, style="debug", **kwargs):
     if DEBUG_MODE_ENABLED:
         console.print(message, style=style, **kwargs)
+
+
+def _normalize_intent(player_input: str) -> str:
+    """Deterministic fallback for ``get_player_intent`` when Ollama is down.
+
+    Mirrors ``normalize_intent`` in the LLM-free test harness so offline play
+    can still drive ``player_intent`` event triggers.
+    """
+    return player_input.strip().lower().replace(" ", "_")
+
+
+def mark_llm_offline(message: str):
+    global LLM_AVAILABLE, LLM_OFFLINE_BANNER_SHOWN
+    LLM_AVAILABLE = False
+    if not LLM_OFFLINE_BANNER_SHOWN:
+        console.print(message, style="warning")
+        LLM_OFFLINE_BANNER_SHOWN = True
 
 
 def display_title():
@@ -72,6 +94,9 @@ def display_story(text_content):
 def get_llm_story_continuation(
     current_narrative: str, player_choice: str, instructions: list[str]
 ) -> str:
+    if not LLM_AVAILABLE:
+        return "The path forward is hazy..."
+
     prompt = (
         f"You are a storyteller for a text adventure game.\n"
         f"This is the current situation: '{current_narrative}'.\n"
@@ -91,6 +116,7 @@ def get_llm_story_continuation(
         return response["message"]["content"].strip()
     except Exception as e:
         console.print(f"Error getting story continuation: {e}", style="danger")
+        mark_llm_offline("LLM offline — narration degraded to fallback text.")
         return "The path forward is hazy..."
 
 
@@ -106,6 +132,9 @@ def get_player_intent(player_input: str, game_state_manager: GameStateManager) -
         f"Possible intents include, but are not limited to: 'search_desk', 'read_journal', 'go_to_bluffs', 'attack', 'flee', 'talk_to_npc', 'use_item'.\n"
         f"Respond with only the single intent keyword (e.g., 'search_desk')."
     )
+    if not LLM_AVAILABLE:
+        return _normalize_intent(player_input)
+
     try:
         response = ollama_client.chat(
             model=OLLAMA_MODEL,
@@ -117,9 +146,31 @@ def get_player_intent(player_input: str, game_state_manager: GameStateManager) -
         return intent
     except Exception as e:
         console.print(f"Error getting player intent: {e}", style="danger")
-        return "unknown_intent"
+        mark_llm_offline("LLM offline — intent classification degraded to keyword normalization.")
+        return _normalize_intent(player_input)
 
-def get_llm_options(current_narrative: str, game_state_manager: GameStateManager) -> tuple[str, list[str]]:
+def get_llm_options(
+    current_narrative: str,
+    game_state_manager: GameStateManager,
+    added_choices: list[dict] | None = None,
+) -> tuple[str, list[str]]:
+    added_choices = added_choices or []
+
+    def _fallback_choices() -> list[str]:
+        labels = []
+        seen = set()
+        for choice in added_choices:
+            label = choice.get("label") if isinstance(choice, dict) else str(choice)
+            if label and label not in seen:
+                seen.add(label)
+                labels.append(label)
+        if not labels:
+            labels = ["Look around.", "Check inventory.", "Wait.", "Leave."]
+        return labels
+
+    if not LLM_AVAILABLE:
+        return current_narrative, _fallback_choices()
+
     player_stats = game_state_manager.get_stats()
     inventory = game_state_manager.get_inventory()
     location = game_state_manager.get_current_location()
@@ -160,9 +211,11 @@ def get_llm_options(current_narrative: str, game_state_manager: GameStateManager
 
     except Exception as e:
         console.print(f"Error getting LLM options: {e}", style="danger")
-        console.print(f"LLM Raw Response was: {raw_json_str}", style="debug")
-        # Fallback to a generic set of options
-        return current_narrative, ["Look around.", "Check inventory.", "Wait.", "Leave."]
+        raw = locals().get("raw_json_str", "")
+        if raw:
+            console.print(f"LLM Raw Response was: {raw}", style="debug")
+        mark_llm_offline("LLM offline — authored choices only.")
+        return current_narrative, _fallback_choices()
 
 
 def get_player_choice(
@@ -196,6 +249,12 @@ def get_player_choice(
                     return "EVENT_TRIGGERED", event_id
                 else:
                     return action, None
+
+        # Free-text actions: route anything the player types through the same
+        # intent/keyword event pass the numbered choices already use. This
+        # removes the "keyword lottery" between LLM phrasing and authored YAML.
+        if user_input:
+            return user_input, None
 
         console.print("Invalid choice.", style="error")
 
@@ -292,11 +351,9 @@ def game_loop(story_name: str, saved_state=None):
     while True:
         console.rule(f"Turn {game_state_manager.get_turn_count()}", style="bold magenta")
 
-        # --- 1. Get Scene Description and Choices from LLM ---
-        narrative, choices = get_llm_options(narrative, game_state_manager)
-        display_story(narrative)
-
-        # --- 2. Check for pre-choice events (e.g., location-based triggers) ---
+        # --- 1. Pre-choice events (location ambience, restlessness, authored
+        # injected choices). Run before the LLM so offline play and the hint
+        # vocabulary both have access to whatever the story just injected.
         llm_instructions = []
         event_results = event_manager.check_and_trigger_events(
             game_state_manager, "", llm_instructions
@@ -306,8 +363,15 @@ def game_loop(story_name: str, saved_state=None):
         for text in event_results.get("injected_narratives_pre", []):
             display_story(text)
 
-        # --- 3. Get Player's Choice ---
         added_choices = event_results.get("added_choices", [])
+
+        # --- 2. Get Scene Description and Choices from LLM ---
+        narrative, choices = get_llm_options(
+            narrative, game_state_manager, added_choices=added_choices
+        )
+        display_story(narrative)
+
+        # --- 3. Get Player's Choice ---
         player_choice, event_to_trigger = get_player_choice(
             choices, added_choices, game_state_manager, event_manager, narrative
         )
